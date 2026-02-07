@@ -23,9 +23,9 @@ Restart Codex.
 Codex discovers skills via `~/.agents/skills/`. The symlink points Codex to Super-Ralph's 14 skill directories. Each skill has a `SKILL.md` with YAML frontmatter (`name`, `description`) that Codex uses for auto-discovery.
 
 When you describe a task, Codex automatically matches it to the relevant skill:
-- "Build a feature" -> brainstorming -> writing-plans -> test-driven-development
-- "Fix this bug" -> systematic-debugging -> test-driven-development
-- "Is this done?" -> verification-before-completion
+- "Build a feature" -> sr-brainstorming -> sr-writing-plans -> sr-test-driven-development
+- "Fix this bug" -> sr-systematic-debugging -> sr-test-driven-development
+- "Is this done?" -> sr-verification-before-completion
 
 ## Skills Included
 

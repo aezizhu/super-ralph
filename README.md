@@ -107,12 +107,12 @@ The bash system replicates and extends Ralph's autonomous loop infrastructure:
 
 | Component | File | Description |
 |-----------|------|-------------|
-| **Main Loop** | `super_ralph_loop.sh` | The autonomous development loop. Runs Claude Code in a loop with rate limiting (configurable calls/hour), circuit breaker pattern (stops after repeated failures), intelligent exit detection (dual-condition gate: completion indicators + EXIT_SIGNAL), and session continuity. Injects Super-Ralph methodology context via `--append-system-prompt` on every iteration. Operates in dual mode: reuses Ralph's libraries when installed, or runs standalone with built-in infrastructure. |
-| **Skill Selector** | `lib/skill_selector.sh` | Classifies tasks from `fix_plan.md` into types (FEATURE, BUG, PLAN_TASK, REVIEW, COMPLETION) and maps each type to the appropriate Super-Ralph skill workflow chain. For example, a FEATURE triggers brainstorming -> writing-plans -> TDD, while a BUG triggers systematic-debugging -> TDD. Provides functions: `classify_task()`, `get_skill_workflow()`, `get_current_task()`, `has_design_doc()`, `has_implementation_plan()`, `all_tasks_complete()`, `count_remaining_tasks()`. |
-| **TDD Gate** | `lib/tdd_gate.sh` | Analyzes Claude's output for TDD compliance. Pattern-matches against RED indicators (test written, test fails, failing test), GREEN indicators (test passes, all tests pass, tests green), and VIOLATION indicators (skip test, implement first, test later, no test needed). Produces a JSON compliance report with pass/fail status. Functions: `check_tdd_compliance()`, `analyze_tdd_status()`, `log_tdd_summary()`, `get_tdd_enforcement_context()`. |
-| **Verification Gate** | `lib/verification_gate.sh` | Detects unverified completion claims vs evidence-based claims. Matches UNVERIFIED patterns ("should pass", "looks correct", "probably works", "seems to") against VERIFIED patterns ("34/34 pass", "exit code 0", "0 failures", "all tests pass"). Blocks exit signals that lack verification evidence. Functions: `check_verification()`, `analyze_verification_status()`, `log_verification_summary()`, `validate_exit_signal()`. |
-| **Installer** | `install.sh` | Installs `super-ralph` and `super-ralph-setup` commands globally to `~/.local/bin`. Copies libraries to `~/.super-ralph/`. Includes embedded `super-ralph-setup` script for project scaffolding (creates `.ralph/` directory structure with PROMPT.md, specs/, fix_plan.md). Supports `./install.sh uninstall` for clean removal. |
-| **Enhanced Prompt** | `super-ralph-prompt.md` | Drop-in replacement for Ralph's `.ralph/PROMPT.md`. Contains the full Super-Ralph methodology embedded as prompt context: task classification table, TDD workflow (RED-VERIFY-GREEN-VERIFY-REFACTOR-COMMIT), systematic debugging 4-phase process, verification enforcement, and skill selection logic. This is what Claude reads on every loop iteration. |
+| **Main Loop** | `standalone/super_ralph_loop.sh` | The autonomous development loop. Runs Claude Code in a loop with rate limiting (configurable calls/hour), circuit breaker pattern (stops after repeated failures), intelligent exit detection (dual-condition gate: completion indicators + EXIT_SIGNAL), and session continuity. Injects Super-Ralph methodology context via `--append-system-prompt` on every iteration. Operates in dual mode: reuses Ralph's libraries when installed, or runs standalone with built-in infrastructure. |
+| **Skill Selector** | `standalone/lib/skill_selector.sh` | Classifies tasks from `fix_plan.md` into types (FEATURE, BUG, PLAN_TASK, REVIEW, COMPLETION) and maps each type to the appropriate Super-Ralph skill workflow chain. For example, a FEATURE triggers brainstorming -> writing-plans -> TDD, while a BUG triggers systematic-debugging -> TDD. Provides functions: `classify_task()`, `get_skill_workflow()`, `get_current_task()`, `has_design_doc()`, `has_implementation_plan()`, `all_tasks_complete()`, `count_remaining_tasks()`. |
+| **TDD Gate** | `standalone/lib/tdd_gate.sh` | Analyzes Claude's output for TDD compliance. Pattern-matches against RED indicators (test written, test fails, failing test), GREEN indicators (test passes, all tests pass, tests green), and VIOLATION indicators (skip test, implement first, test later, no test needed). Produces a JSON compliance report with pass/fail status. Functions: `check_tdd_compliance()`, `analyze_tdd_status()`, `log_tdd_summary()`, `get_tdd_enforcement_context()`. |
+| **Verification Gate** | `standalone/lib/verification_gate.sh` | Detects unverified completion claims vs evidence-based claims. Matches UNVERIFIED patterns ("should pass", "looks correct", "probably works", "seems to") against VERIFIED patterns ("34/34 pass", "exit code 0", "0 failures", "all tests pass"). Blocks exit signals that lack verification evidence. Functions: `check_verification()`, `analyze_verification_status()`, `log_verification_summary()`, `validate_exit_signal()`. |
+| **Installer** | `standalone/install.sh` | Installs `super-ralph` and `super-ralph-setup` commands globally to `~/.local/bin`. Copies libraries to `~/.super-ralph/`. Includes embedded `super-ralph-setup` script for project scaffolding (creates `.ralph/` directory structure with PROMPT.md, specs/, fix_plan.md). Supports `./install.sh uninstall` for clean removal. |
+| **Enhanced Prompt** | `standalone/super-ralph-prompt.md` | Drop-in replacement for Ralph's `.ralph/PROMPT.md`. Contains the full Super-Ralph methodology embedded as prompt context: task classification table, TDD workflow (RED-VERIFY-GREEN-VERIFY-REFACTOR-COMMIT), systematic debugging 4-phase process, verification enforcement, and skill selection logic. This is what Claude reads on every loop iteration. |
 
 ### Skills Library
 
@@ -148,8 +148,8 @@ plugins/super-ralph/skills/
 
 | File | Description |
 |------|-------------|
-| `ralph-integration-guide.md` | Explains the 3-layer architecture (Infrastructure / Prompt / Methodology), setup options for existing Ralph projects (replace PROMPT.md, augment existing, CLAUDE.md integration), compatibility notes (RALPH_STATUS extension, circuit breaker interaction, session continuity), and troubleshooting guide. |
-| `ralph-skill-hooks.md` | Decision tables for automatic skill selection at each loop phase: task classification hook (IF feature/bug/plan/review -> skill workflow), between-task hook (review -> fix -> verify -> commit -> mark complete), loop-end hook (run tests -> set status), parallel task hook, and error recovery hook. |
+| `docs/ralph-integration-guide.md` | Explains the 3-layer architecture (Infrastructure / Prompt / Methodology), setup options for existing Ralph projects (replace PROMPT.md, augment existing, CLAUDE.md integration), compatibility notes (RALPH_STATUS extension, circuit breaker interaction, session continuity), and troubleshooting guide. |
+| `docs/ralph-skill-hooks.md` | Decision tables for automatic skill selection at each loop phase: task classification hook (IF feature/bug/plan/review -> skill workflow), between-task hook (review -> fix -> verify -> commit -> mark complete), loop-end hook (run tests -> set status), parallel task hook, and error recovery hook. |
 
 ---
 
@@ -164,10 +164,10 @@ RALPH LOOP ITERATION START
 |
 +-- 2. CLASSIFY: What type of work is the current task?
 |   |
-|   +-- NEW FEATURE ----------> Brainstorming -> Writing Plans -> Git Worktrees -> TDD
-|   +-- BUG FIX --------------> Systematic Debugging -> TDD
-|   +-- IMPLEMENTATION TASK --> TDD (with subagent-driven or executing-plans)
-|   +-- COMPLETION/REVIEW ----> Verification -> Code Review -> Finishing Branch
+|   +-- NEW FEATURE ----------> sr-brainstorming -> sr-writing-plans -> sr-using-git-worktrees -> sr-test-driven-development
+|   +-- BUG FIX --------------> sr-systematic-debugging -> sr-test-driven-development
+|   +-- IMPLEMENTATION TASK --> sr-test-driven-development (with sr-subagent-driven-development or sr-executing-plans)
+|   +-- COMPLETION/REVIEW ----> sr-verification-before-completion -> sr-requesting-code-review -> sr-finishing-a-development-branch
 |
 +-- 3. EXECUTE: Follow the skill workflow for the task type
 |
@@ -236,7 +236,7 @@ Dispatches fresh subagent per task with two-stage review after each: spec compli
 
 **Trigger:** Implementation plan to execute in batches with human checkpoints.
 
-Alternative to subagent-driven development. Loads plan, reviews critically, executes tasks in batches of 3 (default), reports progress between batches with verification output, waits for feedback, continues. Stops immediately on blockers instead of guessing. Uses finishing-a-development-branch when all tasks complete.
+Alternative to sr-subagent-driven-development. Loads plan, reviews critically, executes tasks in batches of 3 (default), reports progress between batches with verification output, waits for feedback, continues. Stops immediately on blockers instead of guessing. Uses sr-finishing-a-development-branch when all tasks complete.
 
 ### Requesting Code Review
 
@@ -272,7 +272,7 @@ When multiple unrelated problems exist, dispatch one agent per independent domai
 
 **Trigger:** Every conversation -- establishes skill invocation requirement.
 
-The master orchestrator skill. If there is even a 1% chance a skill might apply to what you're doing, you ABSOLUTELY MUST invoke the skill. This is not negotiable. Skill check comes BEFORE any response or action, including clarifying questions. Priority: process skills first (brainstorming, debugging), implementation skills second.
+The master orchestrator skill. If there is even a 1% chance a skill might apply to what you're doing, you ABSOLUTELY MUST invoke the skill. This is not negotiable. Skill check comes BEFORE any response or action, including clarifying questions. Priority: process skills first (sr-brainstorming, sr-systematic-debugging), implementation skills second.
 
 ### Writing Skills
 
@@ -316,7 +316,7 @@ echo ".super-ralph/" >> .gitignore
 
 Then reference in your tool's instruction file (AGENTS.md, .cursorrules, etc.):
 ```
-Read and follow the skills in .super-ralph/skills/ for all development work.
+Read and follow the skills in .super-ralph/plugins/super-ralph/skills/ for all development work.
 ```
 
 ### Standalone Bash System
@@ -324,7 +324,7 @@ Read and follow the skills in .super-ralph/skills/ for all development work.
 ```bash
 git clone https://github.com/aezizhu/super-ralph.git
 cd super-ralph
-./install.sh
+./standalone/install.sh
 ```
 
 This installs:
@@ -376,6 +376,6 @@ Super-Ralph is built on top of two excellent open-source projects:
 
 - **[Superpowers](https://github.com/obra/superpowers)** by Jesse Vincent ([@obra](https://github.com/obra)) -- The complete skills framework and software development methodology. All 14 skills and supporting files in the `skills/` directory are adapted from the Superpowers project (v4.2.0) with sr- prefixed names. MIT License.
 
-- **[Ralph](https://github.com/frankbria/ralph-claude-code)** by Frank Bria ([@frankbria](https://github.com/frankbria)) -- The autonomous AI development loop for Claude Code. The bash system (`super_ralph_loop.sh`, `install.sh`, and library files) is inspired by and extends Ralph's architecture (v0.11.4). MIT License.
+- **[Ralph](https://github.com/frankbria/ralph-claude-code)** by Frank Bria ([@frankbria](https://github.com/frankbria)) -- The autonomous AI development loop for Claude Code. The bash system (`standalone/super_ralph_loop.sh`, `standalone/install.sh`, and library files) is inspired by and extends Ralph's architecture (v0.11.4). MIT License.
 
 If Superpowers or Ralph has helped you, consider [sponsoring Jesse's work](https://github.com/sponsors/obra) and [starring Ralph](https://github.com/frankbria/ralph-claude-code).
