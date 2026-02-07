@@ -18,7 +18,7 @@ while [[ $# -gt 0 ]]; do
 Ralph Loop - Interactive self-referential development loop
 
 USAGE:
-  /ralph-loop [PROMPT...] [OPTIONS]
+  /sr-ralph-loop[PROMPT...] [OPTIONS]
 
 ARGUMENTS:
   PROMPT...    Initial prompt to start the loop (can be multiple words without quotes)
@@ -40,10 +40,10 @@ DESCRIPTION:
   - Learning how Ralph works
 
 EXAMPLES:
-  /ralph-loop Build a todo API --completion-promise 'DONE' --max-iterations 20
-  /ralph-loop --max-iterations 10 Fix the auth bug
-  /ralph-loop Refactor cache layer  (runs forever)
-  /ralph-loop --completion-promise 'TASK COMPLETE' Create a REST API
+  /sr-ralph-loopBuild a todo API --completion-promise 'DONE' --max-iterations 20
+  /sr-ralph-loop--max-iterations 10 Fix the auth bug
+  /sr-ralph-loopRefactor cache layer  (runs forever)
+  /sr-ralph-loop--completion-promise 'TASK COMPLETE' Create a REST API
 
 STOPPING:
   Only by reaching --max-iterations or detecting --completion-promise
@@ -51,10 +51,10 @@ STOPPING:
 
 MONITORING:
   # View current iteration:
-  grep '^iteration:' .claude/ralph-loop.local.md
+  grep '^iteration:' .claude/super-ralph-loop.local.md
 
   # View full state:
-  head -10 .claude/ralph-loop.local.md
+  head -10 .claude/super-ralph-loop.local.md
 HELP_EOF
       exit 0
       ;;
@@ -116,14 +116,14 @@ PROMPT="${PROMPT_PARTS[*]}"
 if [[ -z "$PROMPT" ]]; then
   echo "❌ Error: No prompt provided" >&2
   echo "" >&2
-  echo "   Ralph needs a task description to work on." >&2
+  echo "   Super-Ralph needs a task description to work on." >&2
   echo "" >&2
   echo "   Examples:" >&2
-  echo "     /ralph-loop Build a REST API for todos" >&2
-  echo "     /ralph-loop Fix the auth bug --max-iterations 20" >&2
-  echo "     /ralph-loop --completion-promise 'DONE' Refactor code" >&2
+  echo "     /sr-ralph-loopBuild a REST API for todos" >&2
+  echo "     /sr-ralph-loopFix the auth bug --max-iterations 20" >&2
+  echo "     /sr-ralph-loop--completion-promise 'DONE' Refactor code" >&2
   echo "" >&2
-  echo "   For all options: /ralph-loop --help" >&2
+  echo "   For all options: /sr-ralph-loop--help" >&2
   exit 1
 fi
 
@@ -137,7 +137,7 @@ else
   COMPLETION_PROMISE_YAML="null"
 fi
 
-cat > .claude/ralph-loop.local.md <<EOF
+cat > .claude/super-ralph-loop.local.md <<EOF
 ---
 active: true
 iteration: 1
@@ -151,7 +151,7 @@ EOF
 
 # Output setup message
 cat <<EOF
-🔄 Ralph loop activated in this session!
+🔄 Super-Ralph loop activated in this session!
 
 Iteration: 1
 Max iterations: $(if [[ $MAX_ITERATIONS -gt 0 ]]; then echo $MAX_ITERATIONS; else echo "unlimited"; fi)
@@ -161,7 +161,7 @@ The stop hook is now active. When you try to exit, the SAME PROMPT will be
 fed back to you. You'll see your previous work in files, creating a
 self-referential loop where you iteratively improve on the same task.
 
-To monitor: head -10 .claude/ralph-loop.local.md
+To monitor: head -10 .claude/super-ralph-loop.local.md
 
 ⚠️  WARNING: This loop cannot be stopped manually! It will run infinitely
     unless you set --max-iterations or --completion-promise.
