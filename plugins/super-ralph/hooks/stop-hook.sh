@@ -195,15 +195,6 @@ You are running Super-Ralph. This is iteration $NEXT_ITERATION of an autonomous 
 
 FIRST ACTION REQUIRED: Invoke the skill 'using-super-ralph' to reload the full Super-Ralph methodology before doing ANY other work. This is non-negotiable — it loads the complete enforcement rules, red flags table, and skill routing that you need.
 
-CONTEXT MANAGEMENT (CRITICAL FOR LONG LOOPS):
-- You are in a LONG-RUNNING loop. Context window is LIMITED. Manage it aggressively.
-- NEVER spawn broad Explore agents with open-ended analysis — they consume 60-80k tokens each and will exhaust your context in 2 iterations.
-- Use TARGETED searches: Glob for specific files, Grep for specific patterns, Read for specific files. These are 100x more context-efficient.
-- Keep your responses CONCISE. No lengthy analysis reports or status tables unless the user asked for them.
-- Focus on DOING work (writing code, running tests), not ANALYZING the codebase repeatedly.
-- If you already explored the codebase in a previous iteration, DO NOT re-explore. Check git log and file timestamps to see what changed.
-- Prefer many small tool calls over few large ones.
-
 After loading the methodology, use sr- prefixed skills for ALL work — no exceptions.
 
 MANDATORY SKILL ROUTING:
