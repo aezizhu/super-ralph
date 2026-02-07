@@ -97,6 +97,16 @@ Super-Ralph will:
 5. Verify everything passes (sr-verification-before-completion)
 6. Output `<promise>API COMPLETE</promise>` when truly done
 
+## Troubleshooting
+
+If the loop stops unexpectedly, enable debug logging:
+
+```bash
+export SUPER_RALPH_DEBUG=1
+```
+
+Then run `/using-super-ralph` again. Check `.claude/super-ralph-debug.log` in your project directory for the stop hook execution trace.
+
 ## Note
 
 Super-Ralph includes all skills from the [Superpowers](https://github.com/obra/superpowers) plugin. If you have Superpowers installed separately, you can uninstall it to avoid duplicate skill names.

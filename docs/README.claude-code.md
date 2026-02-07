@@ -50,6 +50,16 @@ For autonomous loops, use `/using-super-ralph`:
 /using-super-ralph "Build a todo API" --completion-promise "DONE" --max-iterations 15
 ```
 
+## Troubleshooting
+
+If the loop stops unexpectedly, enable debug logging:
+
+```bash
+export SUPER_RALPH_DEBUG=1
+```
+
+Then run `/using-super-ralph` again. Check `.claude/super-ralph-debug.log` in your project directory for the stop hook execution trace.
+
 ## Updating
 
 ```
