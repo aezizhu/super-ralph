@@ -43,6 +43,36 @@ digraph skill_flow {
 }
 ```
 
+## Mandatory Skill Routing Table
+
+<EXTREMELY-IMPORTANT>
+ALL Super-Ralph skills use the `sr-` prefix. You MUST use the EXACT skill names below.
+NEVER use unprefixed names like "brainstorming", "test-driven-development", or "systematic-debugging".
+NEVER invoke superpowers:* skills — use the sr- prefixed Super-Ralph versions instead.
+</EXTREMELY-IMPORTANT>
+
+| Task Type | EXACT Skill to Invoke | When |
+|-----------|----------------------|------|
+| New feature, creative work | **sr-brainstorming** | BEFORE any design or implementation |
+| Create implementation plan | **sr-writing-plans** | After design is approved |
+| Any implementation work | **sr-test-driven-development** | ALL coding (features, bugs, refactoring) |
+| Bug, test failure, error | **sr-systematic-debugging** | BEFORE proposing any fix |
+| Claiming work is done | **sr-verification-before-completion** | BEFORE any commit or completion claim |
+| Execute plan (same session) | **sr-subagent-driven-development** | Independent tasks with subagents |
+| Execute plan (new session) | **sr-executing-plans** | Batch execution with checkpoints |
+| After completing tasks | **sr-requesting-code-review** | Dispatch code-reviewer subagent |
+| Received review feedback | **sr-receiving-code-review** | Evaluate feedback critically |
+| All tasks done, integrate | **sr-finishing-a-development-branch** | Merge, PR, or cleanup |
+| Need isolated workspace | **sr-using-git-worktrees** | Feature isolation |
+| 3+ independent failures | **sr-dispatching-parallel-agents** | Parallel agents |
+| Creating/editing skills | **sr-writing-skills** | TDD for skills |
+
+**Workflow chains (use EXACT names):**
+- "Build a feature" → **sr-brainstorming** → **sr-writing-plans** → **sr-test-driven-development**
+- "Fix this bug" → **sr-systematic-debugging** → **sr-test-driven-development**
+- "Is this done?" → **sr-verification-before-completion**
+- "Review this code" → **sr-requesting-code-review**
+
 ## Red Flags
 
 These thoughts mean STOP -- you're rationalizing:
@@ -66,19 +96,32 @@ These thoughts mean STOP -- you're rationalizing:
 
 When multiple skills could apply, use this order:
 
-1. **Process skills first** (brainstorming, debugging) - these determine HOW to approach the task
-2. **Implementation skills second** (frontend-design, mcp-builder) - these guide execution
+1. **Process skills first** (sr-brainstorming, sr-systematic-debugging) - these determine HOW to approach the task
+2. **Implementation skills second** (sr-test-driven-development, sr-writing-plans) - these guide execution
 
-"Let's build X" -> brainstorming first, then implementation skills.
-"Fix this bug" -> debugging first, then domain-specific skills.
+"Let's build X" → sr-brainstorming first, then implementation skills.
+"Fix this bug" → sr-systematic-debugging first, then domain-specific skills.
 
 ## Skill Types
 
-**Rigid** (TDD, debugging): Follow exactly. Don't adapt away discipline.
+**Rigid** (sr-test-driven-development, sr-systematic-debugging): Follow exactly. Don't adapt away discipline.
 
 **Flexible** (patterns): Adapt principles to context.
 
 The skill itself tells you which.
+
+## Enforcement Rules
+
+<EXTREMELY-IMPORTANT>
+These rules are NON-NEGOTIABLE. Violating them is a critical failure.
+
+1. **ANNOUNCE before using:** Always say "I'm using sr-[skill-name] to [purpose]" before following a skill.
+2. **NEVER skip sr-verification-before-completion:** Before ANY claim that work is done, tests pass, or code compiles — you MUST run the actual commands and read the output. Saying "should work" or "looks correct" without evidence is a VIOLATION.
+3. **NEVER propose fixes without sr-systematic-debugging:** If something is broken, you MUST complete Phase 1 (root cause investigation) before suggesting any fix.
+4. **ONE fix at a time:** Never bundle multiple fixes. Test each fix individually.
+5. **NO code formatting degradation:** Never compress multi-line code to single lines. Maintain or improve readability.
+6. **Evidence before assertions:** Every success claim requires command output proving it. "Compiles successfully" requires `cargo check` with 0 errors shown.
+</EXTREMELY-IMPORTANT>
 
 ## User Instructions
 

@@ -11,7 +11,7 @@ Please explain the following to the user:
 Super-Ralph combines two proven systems into one plugin:
 
 - **Ralph Loop** — An iterative development loop where Claude works on the same task repeatedly, seeing its previous work in files and git history, until completion.
-- **Superpowers Methodology** — 14 disciplined engineering skills (brainstorming, TDD, systematic debugging, code review, verification) that prevent ad-hoc implementation.
+- **Super-Ralph Methodology** — 14 disciplined engineering skills (sr-brainstorming, sr-test-driven-development, sr-systematic-debugging, sr-requesting-code-review, sr-verification-before-completion) that prevent ad-hoc implementation.
 
 **Result:** An autonomous AI agent with both endurance (runs for hours) and discipline (follows engineering best practices).
 

@@ -41,7 +41,7 @@ Start by understanding the current project context, then ask questions one at a 
 **Implementation (if continuing):**
 - Ask: "Ready to set up for implementation?"
 - Use sr-using-git-worktrees skill to create isolated workspace
-- Use writing-plans skill to create detailed implementation plan
+- Use sr-writing-plans skill to create detailed implementation plan
 
 ## Key Principles
 

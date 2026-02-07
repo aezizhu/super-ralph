@@ -164,10 +164,10 @@ RALPH LOOP ITERATION START
 |
 +-- 2. CLASSIFY: What type of work is the current task?
 |   |
-|   +-- NEW FEATURE ----------> Brainstorming -> Writing Plans -> Git Worktrees -> TDD
-|   +-- BUG FIX --------------> Systematic Debugging -> TDD
-|   +-- IMPLEMENTATION TASK --> TDD (with subagent-driven or executing-plans)
-|   +-- COMPLETION/REVIEW ----> Verification -> Code Review -> Finishing Branch
+|   +-- NEW FEATURE ----------> sr-brainstorming -> sr-writing-plans -> sr-using-git-worktrees -> sr-test-driven-development
+|   +-- BUG FIX --------------> sr-systematic-debugging -> sr-test-driven-development
+|   +-- IMPLEMENTATION TASK --> sr-test-driven-development (with sr-subagent-driven-development or sr-executing-plans)
+|   +-- COMPLETION/REVIEW ----> sr-verification-before-completion -> sr-requesting-code-review -> sr-finishing-a-development-branch
 |
 +-- 3. EXECUTE: Follow the skill workflow for the task type
 |
@@ -236,7 +236,7 @@ Dispatches fresh subagent per task with two-stage review after each: spec compli
 
 **Trigger:** Implementation plan to execute in batches with human checkpoints.
 
-Alternative to subagent-driven development. Loads plan, reviews critically, executes tasks in batches of 3 (default), reports progress between batches with verification output, waits for feedback, continues. Stops immediately on blockers instead of guessing. Uses finishing-a-development-branch when all tasks complete.
+Alternative to sr-subagent-driven-development. Loads plan, reviews critically, executes tasks in batches of 3 (default), reports progress between batches with verification output, waits for feedback, continues. Stops immediately on blockers instead of guessing. Uses sr-finishing-a-development-branch when all tasks complete.
 
 ### Requesting Code Review
 
@@ -272,7 +272,7 @@ When multiple unrelated problems exist, dispatch one agent per independent domai
 
 **Trigger:** Every conversation -- establishes skill invocation requirement.
 
-The master orchestrator skill. If there is even a 1% chance a skill might apply to what you're doing, you ABSOLUTELY MUST invoke the skill. This is not negotiable. Skill check comes BEFORE any response or action, including clarifying questions. Priority: process skills first (brainstorming, debugging), implementation skills second.
+The master orchestrator skill. If there is even a 1% chance a skill might apply to what you're doing, you ABSOLUTELY MUST invoke the skill. This is not negotiable. Skill check comes BEFORE any response or action, including clarifying questions. Priority: process skills first (sr-brainstorming, sr-systematic-debugging), implementation skills second.
 
 ### Writing Skills
 

@@ -13,7 +13,7 @@ You write test cases (pressure scenarios with subagents), watch them fail (basel
 
 **Core principle:** If you didn't watch an agent fail without the skill, you don't know if the skill teaches the right thing.
 
-**REQUIRED BACKGROUND:** You MUST understand test-driven-development before using this skill.
+**REQUIRED BACKGROUND:** You MUST understand sr-test-driven-development before using this skill.
 
 ## What is a Skill?
 
