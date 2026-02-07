@@ -1,0 +1,12 @@
+{
+  "name": "super-ralph",
+  "description": "Ralph autonomous loop + Superpowers skills: brainstorming, TDD, systematic debugging, subagent-driven development, code review, and verification workflows",
+  "version": "1.0.0",
+  "author": {
+    "name": "aezizhu",
+    "email": ""
+  },
+  "homepage": "https://github.com/aezizhu/super-ralph",
+  "repository": "https://github.com/aezizhu/super-ralph",
+  "license": "MIT"
+}
