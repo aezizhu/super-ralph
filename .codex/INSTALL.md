@@ -16,7 +16,7 @@ Enable Super-Ralph skills in Codex via native skill discovery. Just clone and sy
 2. **Create the skills symlink:**
    ```bash
    mkdir -p ~/.agents/skills
-   ln -s ~/.codex/super-ralph/skills ~/.agents/skills/super-ralph
+   ln -s ~/.codex/super-ralph/plugins/super-ralph/skills ~/.agents/skills/super-ralph
    ```
 
    **Windows (PowerShell):**
@@ -34,10 +34,10 @@ ls -la ~/.agents/skills/super-ralph
 ```
 
 You should see a symlink pointing to your super-ralph skills directory containing 14 skill folders:
-brainstorming, writing-plans, test-driven-development, systematic-debugging,
-verification-before-completion, subagent-driven-development, executing-plans,
-requesting-code-review, receiving-code-review, finishing-a-development-branch,
-dispatching-parallel-agents, using-git-worktrees, using-super-ralph, writing-skills.
+sr-brainstorming, sr-writing-plans, sr-test-driven-development, sr-systematic-debugging,
+sr-verification-before-completion, sr-subagent-driven-development, sr-executing-plans,
+sr-requesting-code-review, sr-receiving-code-review, sr-finishing-a-development-branch,
+sr-dispatching-parallel-agents, sr-using-git-worktrees, using-super-ralph, sr-writing-skills.
 
 ## Updating
 

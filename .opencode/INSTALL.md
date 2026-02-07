@@ -20,7 +20,7 @@ Create a symlink so OpenCode's native skill tool discovers super-ralph skills:
 ```bash
 mkdir -p ~/.config/opencode/skills
 rm -rf ~/.config/opencode/skills/super-ralph
-ln -s ~/.config/opencode/super-ralph/skills ~/.config/opencode/skills/super-ralph
+ln -s ~/.config/opencode/super-ralph/plugins/super-ralph/skills ~/.config/opencode/skills/super-ralph
 ```
 
 **Windows (PowerShell):**
@@ -50,27 +50,27 @@ use skill tool to list skills
 Use OpenCode's native `skill` tool to load a specific skill:
 
 ```
-use skill tool to load super-ralph/brainstorming
-use skill tool to load super-ralph/test-driven-development
-use skill tool to load super-ralph/systematic-debugging
+use skill tool to load super-ralph/sr-brainstorming
+use skill tool to load super-ralph/sr-test-driven-development
+use skill tool to load super-ralph/sr-systematic-debugging
 ```
 
 ## Available Skills (14 total)
 
-- `brainstorming` - Collaborative design before coding
-- `writing-plans` - Bite-sized implementation plans with exact file paths
-- `test-driven-development` - Strict RED-GREEN-REFACTOR with iron law enforcement
-- `systematic-debugging` - 4-phase root cause investigation before fixes
-- `verification-before-completion` - Evidence before completion claims
-- `subagent-driven-development` - Fresh subagent per task + two-stage review
-- `executing-plans` - Batch execution with human checkpoints
-- `requesting-code-review` - Dispatch code-reviewer subagent
-- `receiving-code-review` - Technical evaluation, not performative agreement
-- `finishing-a-development-branch` - Verify tests, present 4 options, clean up
-- `dispatching-parallel-agents` - One agent per independent problem domain
-- `using-git-worktrees` - Isolated workspaces with safety verification
+- `sr-brainstorming` - Collaborative design before coding
+- `sr-writing-plans` - Bite-sized implementation plans with exact file paths
+- `sr-test-driven-development` - Strict RED-GREEN-REFACTOR with iron law enforcement
+- `sr-systematic-debugging` - 4-phase root cause investigation before fixes
+- `sr-verification-before-completion` - Evidence before completion claims
+- `sr-subagent-driven-development` - Fresh subagent per task + two-stage review
+- `sr-executing-plans` - Batch execution with human checkpoints
+- `sr-requesting-code-review` - Dispatch code-reviewer subagent
+- `sr-receiving-code-review` - Technical evaluation, not performative agreement
+- `sr-finishing-a-development-branch` - Verify tests, present 4 options, clean up
+- `sr-dispatching-parallel-agents` - One agent per independent problem domain
+- `sr-using-git-worktrees` - Isolated workspaces with safety verification
 - `using-super-ralph` - Master orchestrator: invoke skills before any action
-- `writing-skills` - TDD applied to process documentation
+- `sr-writing-skills` - TDD applied to process documentation
 
 ## Updating
 

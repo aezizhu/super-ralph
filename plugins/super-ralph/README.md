@@ -107,12 +107,12 @@ The bash system replicates and extends Ralph's autonomous loop infrastructure:
 
 | Component | File | Description |
 |-----------|------|-------------|
-| **Main Loop** | `super_ralph_loop.sh` | The autonomous development loop. Runs Claude Code in a loop with rate limiting (configurable calls/hour), circuit breaker pattern (stops after repeated failures), intelligent exit detection (dual-condition gate: completion indicators + EXIT_SIGNAL), and session continuity. Injects superpowers methodology context via `--append-system-prompt` on every iteration. Operates in dual mode: reuses Ralph's libraries when installed, or runs standalone with built-in infrastructure. |
-| **Skill Selector** | `lib/skill_selector.sh` | Classifies tasks from `fix_plan.md` into types (FEATURE, BUG, PLAN_TASK, REVIEW, COMPLETION) and maps each type to the appropriate superpowers skill workflow chain. For example, a FEATURE triggers brainstorming -> writing-plans -> TDD, while a BUG triggers systematic-debugging -> TDD. Provides functions: `classify_task()`, `get_skill_workflow()`, `get_current_task()`, `has_design_doc()`, `has_implementation_plan()`, `all_tasks_complete()`, `count_remaining_tasks()`. |
+| **Main Loop** | `super_ralph_loop.sh` | The autonomous development loop. Runs Claude Code in a loop with rate limiting (configurable calls/hour), circuit breaker pattern (stops after repeated failures), intelligent exit detection (dual-condition gate: completion indicators + EXIT_SIGNAL), and session continuity. Injects Super-Ralph methodology context via `--append-system-prompt` on every iteration. Operates in dual mode: reuses Ralph's libraries when installed, or runs standalone with built-in infrastructure. |
+| **Skill Selector** | `lib/skill_selector.sh` | Classifies tasks from `fix_plan.md` into types (FEATURE, BUG, PLAN_TASK, REVIEW, COMPLETION) and maps each type to the appropriate Super-Ralph skill workflow chain. For example, a FEATURE triggers brainstorming -> writing-plans -> TDD, while a BUG triggers systematic-debugging -> TDD. Provides functions: `classify_task()`, `get_skill_workflow()`, `get_current_task()`, `has_design_doc()`, `has_implementation_plan()`, `all_tasks_complete()`, `count_remaining_tasks()`. |
 | **TDD Gate** | `lib/tdd_gate.sh` | Analyzes Claude's output for TDD compliance. Pattern-matches against RED indicators (test written, test fails, failing test), GREEN indicators (test passes, all tests pass, tests green), and VIOLATION indicators (skip test, implement first, test later, no test needed). Produces a JSON compliance report with pass/fail status. Functions: `check_tdd_compliance()`, `analyze_tdd_status()`, `log_tdd_summary()`, `get_tdd_enforcement_context()`. |
 | **Verification Gate** | `lib/verification_gate.sh` | Detects unverified completion claims vs evidence-based claims. Matches UNVERIFIED patterns ("should pass", "looks correct", "probably works", "seems to") against VERIFIED patterns ("34/34 pass", "exit code 0", "0 failures", "all tests pass"). Blocks exit signals that lack verification evidence. Functions: `check_verification()`, `analyze_verification_status()`, `log_verification_summary()`, `validate_exit_signal()`. |
 | **Installer** | `install.sh` | Installs `super-ralph` and `super-ralph-setup` commands globally to `~/.local/bin`. Copies libraries to `~/.super-ralph/`. Includes embedded `super-ralph-setup` script for project scaffolding (creates `.ralph/` directory structure with PROMPT.md, specs/, fix_plan.md). Supports `./install.sh uninstall` for clean removal. |
-| **Enhanced Prompt** | `super-ralph-prompt.md` | Drop-in replacement for Ralph's `.ralph/PROMPT.md`. Contains the full superpowers methodology embedded as prompt context: task classification table, TDD workflow (RED-VERIFY-GREEN-VERIFY-REFACTOR-COMMIT), systematic debugging 4-phase process, verification enforcement, and skill selection logic. This is what Claude reads on every loop iteration. |
+| **Enhanced Prompt** | `super-ralph-prompt.md` | Drop-in replacement for Ralph's `.ralph/PROMPT.md`. Contains the full Super-Ralph methodology embedded as prompt context: task classification table, TDD workflow (RED-VERIFY-GREEN-VERIFY-REFACTOR-COMMIT), systematic debugging 4-phase process, verification enforcement, and skill selection logic. This is what Claude reads on every loop iteration. |
 
 ### Skills Library
 
@@ -363,8 +363,8 @@ Layer 1: INFRASTRUCTURE (Ralph Loop)
 ```
 
 **Dual Mode Operation:**
-- **With Ralph installed:** Reuses Ralph's circuit breaker, response analyzer, date/timeout utils, session management. Adds superpowers methodology layer on top.
-- **Without Ralph:** Runs standalone with built-in rate limiting, call tracking, exit detection, and all superpowers features.
+- **With Ralph installed:** Reuses Ralph's circuit breaker, response analyzer, date/timeout utils, session management. Adds Super-Ralph methodology layer on top.
+- **Without Ralph:** Runs standalone with built-in rate limiting, call tracking, exit detection, and all Super-Ralph features.
 
 ---
 
@@ -374,7 +374,7 @@ MIT License. See [LICENSE](LICENSE).
 
 Super-Ralph is built on top of two excellent open-source projects:
 
-- **[Superpowers](https://github.com/obra/superpowers)** by Jesse Vincent ([@obra](https://github.com/obra)) -- The complete skills framework and software development methodology. All 14 skills and supporting files in the `skills/` directory are faithfully reproduced from the Superpowers project (v4.2.0). MIT License.
+- **[Superpowers](https://github.com/obra/superpowers)** by Jesse Vincent ([@obra](https://github.com/obra)) -- The complete skills framework and software development methodology. All 14 skills and supporting files in the `skills/` directory are adapted from the Superpowers project (v4.2.0) with sr- prefixed names. MIT License.
 
 - **[Ralph](https://github.com/frankbria/ralph-claude-code)** by Frank Bria ([@frankbria](https://github.com/frankbria)) -- The autonomous AI development loop for Claude Code. The bash system (`super_ralph_loop.sh`, `install.sh`, and library files) is inspired by and extends Ralph's architecture (v0.11.4). MIT License.
 

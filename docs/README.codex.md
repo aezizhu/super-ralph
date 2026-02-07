@@ -13,7 +13,7 @@ Fetch and follow instructions from https://raw.githubusercontent.com/aezizhu/sup
 ```bash
 git clone https://github.com/aezizhu/super-ralph.git ~/.codex/super-ralph
 mkdir -p ~/.agents/skills
-ln -s ~/.codex/super-ralph/skills ~/.agents/skills/super-ralph
+ln -s ~/.codex/super-ralph/plugins/super-ralph/skills ~/.agents/skills/super-ralph
 ```
 
 Restart Codex.
@@ -31,20 +31,20 @@ When you describe a task, Codex automatically matches it to the relevant skill:
 
 | Skill | Trigger |
 |-------|---------|
-| brainstorming | New features, creative work, design decisions |
-| writing-plans | Approved design ready for implementation breakdown |
-| test-driven-development | Any implementation (features, bugs, refactoring) |
-| systematic-debugging | Any technical issue (test failures, bugs, errors) |
-| verification-before-completion | Before any completion claim or commit |
-| subagent-driven-development | Executing plan with independent tasks |
-| executing-plans | Batch execution with human checkpoints |
-| requesting-code-review | After tasks, before merge |
-| receiving-code-review | When receiving review feedback |
-| finishing-a-development-branch | All tasks complete, ready to integrate |
-| dispatching-parallel-agents | 3+ independent failures |
-| using-git-worktrees | Feature isolation |
+| sr-brainstorming | New features, creative work, design decisions |
+| sr-writing-plans | Approved design ready for implementation breakdown |
+| sr-test-driven-development | Any implementation (features, bugs, refactoring) |
+| sr-systematic-debugging | Any technical issue (test failures, bugs, errors) |
+| sr-verification-before-completion | Before any completion claim or commit |
+| sr-subagent-driven-development | Executing plan with independent tasks |
+| sr-executing-plans | Batch execution with human checkpoints |
+| sr-requesting-code-review | After tasks, before merge |
+| sr-receiving-code-review | When receiving review feedback |
+| sr-finishing-a-development-branch | All tasks complete, ready to integrate |
+| sr-dispatching-parallel-agents | 3+ independent failures |
+| sr-using-git-worktrees | Feature isolation |
 | using-super-ralph | Every conversation (master orchestrator) |
-| writing-skills | Creating/editing skills |
+| sr-writing-skills | Creating/editing skills |
 
 ## Updating
 

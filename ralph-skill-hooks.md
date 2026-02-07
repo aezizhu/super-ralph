@@ -1,6 +1,6 @@
 # Ralph Skill Hooks
 
-Decision table for which superpowers skill to invoke based on Ralph loop state.
+Decision table for which super-ralph skill to invoke based on Ralph loop state.
 
 ## Task Classification Hook
 
@@ -13,27 +13,27 @@ OUTPUT: Skill to invoke
 CLASSIFY:
   IF task contains "add", "create", "implement", "build", "new"
     AND no design document exists in docs/plans/ for this feature
-    → INVOKE: brainstorming
-    → THEN: writing-plans
-    → THEN: using-git-worktrees
+    → INVOKE: sr-brainstorming
+    → THEN: sr-writing-plans
+    → THEN: sr-using-git-worktrees
 
   IF task contains "fix", "bug", "error", "broken", "failing", "crash"
-    → INVOKE: systematic-debugging
+    → INVOKE: sr-systematic-debugging
 
   IF task references a plan document in docs/plans/
     OR task is a sub-task from an existing plan
-    → INVOKE: test-driven-development
-    → WITH: subagent-driven-development (if multiple independent tasks)
+    → INVOKE: sr-test-driven-development
+    → WITH: sr-subagent-driven-development (if multiple independent tasks)
 
   IF all tasks in fix_plan.md are marked [x]
-    → INVOKE: verification-before-completion
-    → THEN: finishing-a-development-branch
+    → INVOKE: sr-verification-before-completion
+    → THEN: sr-finishing-a-development-branch
 
   IF task contains "review", "feedback", "PR comments"
-    → INVOKE: receiving-code-review
+    → INVOKE: sr-receiving-code-review
 
   DEFAULT:
-    → INVOKE: test-driven-development
+    → INVOKE: sr-test-driven-development
 ```
 
 ## Between-Task Hook
@@ -74,8 +74,8 @@ When fix_plan.md has multiple independent tasks at the same priority level:
 
 ```
 IF 2+ tasks are independent (different files, different subsystems):
-  → INVOKE: dispatching-parallel-agents
-  → Each agent follows test-driven-development
+  → INVOKE: sr-dispatching-parallel-agents
+  → Each agent follows sr-test-driven-development
   → Review all results before committing
 ```
 
@@ -85,7 +85,7 @@ When a loop iteration encounters failures:
 
 ```
 IF test failure:
-  → INVOKE: systematic-debugging
+  → INVOKE: sr-systematic-debugging
   → Root cause investigation before any fix attempt
 
 IF 3+ consecutive failures on same issue:
