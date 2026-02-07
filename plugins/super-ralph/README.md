@@ -13,37 +13,72 @@ Ralph gives your AI agent **endurance** (it can run autonomously for hours). Sup
 
 ## Table of Contents
 
+- [Installation (Claude Code)](#installation-claude-code)
 - [Why Super-Ralph Exists](#why-super-ralph-exists)
 - [What's Inside](#whats-inside)
   - [Bash System (Ralph Infrastructure)](#bash-system-ralph-infrastructure)
-  - [Skills Library (Superpowers Methodology)](#skills-library-superpowers-methodology)
+  - [Skills Library](#skills-library)
   - [Integration Layer](#integration-layer)
 - [The Super-Ralph Loop](#the-super-ralph-loop)
-- [Detailed Skill Descriptions](#detailed-skill-descriptions)
-  - [Brainstorming](#brainstorming)
-  - [Writing Plans](#writing-plans)
-  - [Test-Driven Development](#test-driven-development)
-  - [Systematic Debugging](#systematic-debugging)
-  - [Verification Before Completion](#verification-before-completion)
-  - [Subagent-Driven Development](#subagent-driven-development)
-  - [Executing Plans](#executing-plans)
-  - [Requesting Code Review](#requesting-code-review)
-  - [Receiving Code Review](#receiving-code-review)
-  - [Finishing a Development Branch](#finishing-a-development-branch)
-  - [Using Git Worktrees](#using-git-worktrees)
-  - [Dispatching Parallel Agents](#dispatching-parallel-agents)
-  - [Using Superpowers](#using-superpowers)
-  - [Writing Skills](#writing-skills)
-- [Installation](#installation)
-  - [Factory Droid (Plugin)](#factory-droid-plugin)
-  - [Factory Droid (Personal Skills)](#factory-droid-personal-skills)
-  - [Claude Code](#claude-code)
+- [Skills Reference](#skills-reference)
+- [Other Platforms](#other-platforms)
   - [Codex](#codex)
   - [OpenCode](#opencode)
   - [Other Tools (Cursor, Warp, Amp, etc.)](#other-tools-cursor-warp-amp-etc)
   - [Standalone Bash System](#standalone-bash-system)
 - [Architecture](#architecture)
 - [Attribution & License](#attribution--license)
+
+---
+
+## Installation (Claude Code)
+
+> **Note:** Super-Ralph includes all skills from the [Superpowers](https://github.com/obra/superpowers) plugin. If you have Superpowers installed, you can uninstall it after installing Super-Ralph to avoid duplicate skills.
+
+### Step 1: Add the marketplace
+
+In Claude Code, run:
+
+```
+/plugin add https://github.com/aezizhu/super-ralph
+```
+
+This registers Super-Ralph as a plugin marketplace. Claude Code will clone the repo and discover the plugin.
+
+### Step 2: Install the plugin
+
+After adding the marketplace, Claude Code will show **super-ralph** as an available plugin. Select it to install.
+
+### Step 3: Restart Claude Code
+
+Exit and reopen Claude Code. The 14 skills will be available immediately:
+
+```
+/using-super-ralph          Master orchestrator — invoke skills before any action
+/sr-brainstorming           Explore intent, requirements, and design before coding
+/sr-writing-plans           Create detailed implementation plans with bite-sized tasks
+/sr-test-driven-development Strict RED-GREEN-REFACTOR TDD workflow
+/sr-systematic-debugging    4-phase root cause investigation before any fix
+/sr-verification-before-completion  Evidence before claims — run commands, read output
+/sr-subagent-driven-development     Fresh subagent per task with two-stage review
+/sr-executing-plans         Execute plans in batches with human checkpoints
+/sr-requesting-code-review  Dispatch code-reviewer subagent on git diff
+/sr-receiving-code-review   Technical evaluation of review feedback, not blind agreement
+/sr-finishing-a-development-branch  Verify tests → merge/PR/keep/discard
+/sr-using-git-worktrees     Isolated workspaces for feature development
+/sr-dispatching-parallel-agents     One agent per independent problem domain
+/sr-writing-skills          TDD for skills — test scenarios before writing
+```
+
+### Updating
+
+```
+/plugin update super-ralph
+```
+
+### Uninstalling
+
+Use `/plugin` to browse installed plugins and remove Super-Ralph.
 
 ---
 
@@ -79,36 +114,34 @@ The bash system replicates and extends Ralph's autonomous loop infrastructure:
 | **Installer** | `install.sh` | Installs `super-ralph` and `super-ralph-setup` commands globally to `~/.local/bin`. Copies libraries to `~/.super-ralph/`. Includes embedded `super-ralph-setup` script for project scaffolding (creates `.ralph/` directory structure with PROMPT.md, specs/, fix_plan.md). Supports `./install.sh uninstall` for clean removal. |
 | **Enhanced Prompt** | `super-ralph-prompt.md` | Drop-in replacement for Ralph's `.ralph/PROMPT.md`. Contains the full superpowers methodology embedded as prompt context: task classification table, TDD workflow (RED-VERIFY-GREEN-VERIFY-REFACTOR-COMMIT), systematic debugging 4-phase process, verification enforcement, and skill selection logic. This is what Claude reads on every loop iteration. |
 
-### Skills Library (Superpowers Methodology)
+### Skills Library
 
-All 14 skills from the [Superpowers](https://github.com/obra/superpowers) project, faithfully reproduced with zero modifications. Each skill is a standalone `SKILL.md` file with YAML frontmatter and markdown instructions. Supporting files (prompt templates, technique references) are included where the original has them.
-
-The skills directory structure mirrors the original superpowers repo exactly:
+14 skills based on the [Superpowers](https://github.com/obra/superpowers) methodology, adapted for Super-Ralph with `sr-` prefixed names to avoid conflicts when both plugins are installed. Each skill is a standalone `SKILL.md` file with YAML frontmatter and markdown instructions.
 
 ```
-skills/
-  brainstorming/SKILL.md
-  writing-plans/SKILL.md
-  test-driven-development/SKILL.md
-  test-driven-development/testing-anti-patterns.md
-  systematic-debugging/SKILL.md
-  systematic-debugging/root-cause-tracing.md
-  systematic-debugging/defense-in-depth.md
-  systematic-debugging/condition-based-waiting.md
-  verification-before-completion/SKILL.md
-  subagent-driven-development/SKILL.md
-  subagent-driven-development/implementer-prompt.md
-  subagent-driven-development/spec-reviewer-prompt.md
-  subagent-driven-development/code-quality-reviewer-prompt.md
-  executing-plans/SKILL.md
-  requesting-code-review/SKILL.md
-  requesting-code-review/code-reviewer.md
-  receiving-code-review/SKILL.md
-  finishing-a-development-branch/SKILL.md
-  dispatching-parallel-agents/SKILL.md
-  using-git-worktrees/SKILL.md
-  using-superpowers/SKILL.md
-  writing-skills/SKILL.md
+plugins/super-ralph/skills/
+  using-super-ralph/SKILL.md
+  sr-brainstorming/SKILL.md
+  sr-writing-plans/SKILL.md
+  sr-test-driven-development/SKILL.md
+  sr-test-driven-development/testing-anti-patterns.md
+  sr-systematic-debugging/SKILL.md
+  sr-systematic-debugging/root-cause-tracing.md
+  sr-systematic-debugging/defense-in-depth.md
+  sr-systematic-debugging/condition-based-waiting.md
+  sr-verification-before-completion/SKILL.md
+  sr-subagent-driven-development/SKILL.md
+  sr-subagent-driven-development/implementer-prompt.md
+  sr-subagent-driven-development/spec-reviewer-prompt.md
+  sr-subagent-driven-development/code-quality-reviewer-prompt.md
+  sr-executing-plans/SKILL.md
+  sr-requesting-code-review/SKILL.md
+  sr-requesting-code-review/code-reviewer.md
+  sr-receiving-code-review/SKILL.md
+  sr-finishing-a-development-branch/SKILL.md
+  sr-dispatching-parallel-agents/SKILL.md
+  sr-using-git-worktrees/SKILL.md
+  sr-writing-skills/SKILL.md
 ```
 
 ### Integration Layer
@@ -161,7 +194,7 @@ RECOMMENDATION: <one line summary>
 
 ---
 
-## Detailed Skill Descriptions
+## Skills Reference
 
 ### Brainstorming
 
@@ -235,7 +268,7 @@ Creates isolated git worktrees with systematic directory selection (check for ex
 
 When multiple unrelated problems exist, dispatch one agent per independent domain. Each agent gets specific scope, clear goal, constraints, and expected output format. After agents return: review summaries, check for conflicts, run full test suite, spot check. Do NOT use when failures are related (fix one might fix others), need full system context, or agents would interfere with each other.
 
-### Using Superpowers
+### Using Super-Ralph
 
 **Trigger:** Every conversation -- establishes skill invocation requirement.
 
@@ -249,64 +282,7 @@ Writing skills IS Test-Driven Development applied to process documentation. You 
 
 ---
 
-## Installation
-
-### Factory Droid (Plugin)
-
-Copy the plugin into Droid's marketplace:
-
-```bash
-# Clone
-git clone https://github.com/aezizhu/super-ralph.git
-
-# Copy to marketplace
-cp -r super-ralph/skills/* ~/.factory/plugins/marketplaces/factory-plugins/plugins/super-ralph/skills/
-```
-
-Or install as personal skills (simpler):
-
-### Factory Droid (Personal Skills)
-
-```bash
-git clone https://github.com/aezizhu/super-ralph.git
-for skill in super-ralph/skills/*/; do
-  name=$(basename "$skill")
-  mkdir -p ~/.factory/skills/$name
-  cp -r "$skill"* ~/.factory/skills/$name/
-done
-```
-
-Restart Droid to discover the skills.
-
-### Claude Code
-
-**Method 1: Install as plugin (recommended)**
-
-Super-Ralph ships with a Claude Code marketplace manifest (`.claude-plugin/marketplace.json`), so it works as a native plugin source:
-
-```
-/plugin add https://github.com/aezizhu/super-ralph
-```
-
-All 14 skills will be auto-discovered. Start a new session for skills to take effect.
-
-To update later:
-```
-/plugin update super-ralph
-```
-
-**Method 2: Clone and reference from CLAUDE.md**
-
-```bash
-git clone https://github.com/aezizhu/super-ralph.git ~/.super-ralph
-```
-
-Add to your project's `CLAUDE.md`:
-```markdown
-Read and follow skills from ~/.super-ralph/skills/ directory.
-```
-
-**Detailed docs:** [docs/README.claude-code.md](docs/README.claude-code.md)
+## Other Platforms
 
 ### Codex
 
@@ -327,19 +303,6 @@ Fetch and follow instructions from https://raw.githubusercontent.com/aezizhu/sup
 ```
 
 **Detailed docs:** [docs/README.opencode.md](docs/README.opencode.md)
-
-### Factory Droid
-
-```bash
-git clone https://github.com/aezizhu/super-ralph.git ~/.super-ralph
-for skill in ~/.super-ralph/skills/*/; do
-  name=$(basename "$skill")
-  mkdir -p ~/.factory/skills/$name
-  cp -r "$skill"* ~/.factory/skills/$name/
-done
-```
-
-Restart Droid to discover the skills.
 
 ### Other Tools (Cursor, Warp, Amp, etc.)
 
