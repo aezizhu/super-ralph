@@ -180,10 +180,11 @@ if [[ -z "$PROMPT_TEXT" ]]; then
 fi
 
 # Update iteration in frontmatter (portable across macOS and Linux)
-# Create temp file, then atomically replace
-TEMP_FILE="${RALPH_STATE_FILE}.tmp.$$"
-sed "s/^iteration: .*/iteration: $NEXT_ITERATION/" "$RALPH_STATE_FILE" > "$TEMP_FILE"
-mv "$TEMP_FILE" "$RALPH_STATE_FILE"
+# sed -i.bak works on both macOS and Linux; remove backup after
+debug "Updating iteration: $ITERATION -> $NEXT_ITERATION (CWD: $(pwd))"
+sed -i.bak "s/^iteration: .*/iteration: $NEXT_ITERATION/" "$RALPH_STATE_FILE"
+rm -f "${RALPH_STATE_FILE}.bak"
+debug "State file after update: $(head -6 "$RALPH_STATE_FILE" 2>/dev/null)"
 
 # Build system message with iteration count, completion info, AND methodology enforcement
 # This is critical — without the methodology context, subsequent iterations lose the
