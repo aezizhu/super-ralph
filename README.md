@@ -126,6 +126,7 @@ The bash system replicates and extends Ralph's autonomous loop infrastructure:
 | **Verification Gate** | `standalone/lib/verification_gate.sh` | Detects unverified completion claims vs evidence-based claims. Matches UNVERIFIED patterns ("should pass", "looks correct", "probably works", "seems to") against VERIFIED patterns ("34/34 pass", "exit code 0", "0 failures", "all tests pass"). Blocks exit signals that lack verification evidence. Functions: `check_verification()`, `analyze_verification_status()`, `log_verification_summary()`, `validate_exit_signal()`. |
 | **Session Manager** | `standalone/lib/session_manager.sh` | Manages Claude session persistence with expiry tracking. Handles cross-platform file age detection (GNU/BSD stat), session initialization, save/restore, and reset. Functions: `get_session_file_age_hours()`, `init_claude_session()`, `save_claude_session()`, `init_session_tracking()`, `update_session_last_used()`, `reset_session()`. |
 | **TMUX Utils** | `standalone/lib/tmux_utils.sh` | Sets up multi-pane tmux monitoring sessions with live output, status display, and the main loop running side-by-side. Functions: `check_tmux_available()`, `setup_tmux_session()`. |
+| **Exit Detector** | `standalone/lib/exit_detector.sh` | Determines when the loop should stop based on signal analysis: test saturation, completion signals, permission denials, safety circuit breaker, and verification gates. Also validates `.ralphrc` configuration values. Functions: `should_exit_gracefully()`, `validate_ralphrc()`. |
 | **Installer** | `standalone/install.sh` | Installs `super-ralph` and `super-ralph-setup` commands globally to `~/.local/bin`. Copies libraries to `~/.super-ralph/`. Includes embedded `super-ralph-setup` script for project scaffolding (creates `.ralph/` directory structure with PROMPT.md, specs/, fix_plan.md). Supports `./install.sh uninstall` for clean removal. |
 | **Enhanced Prompt** | `standalone/super-ralph-prompt.md` | Drop-in replacement for Ralph's `.ralph/PROMPT.md`. Contains the full Super-Ralph methodology embedded as prompt context: task classification table, TDD workflow (RED-VERIFY-GREEN-VERIFY-REFACTOR-COMMIT), systematic debugging 4-phase process, verification enforcement, and skill selection logic. This is what Claude reads on every loop iteration. |
 
@@ -397,7 +398,7 @@ Layer 1: INFRASTRUCTURE (Ralph Loop)
 
 ## Development & Testing
 
-Super-Ralph includes a comprehensive test suite with **149 bats tests** covering all gate libraries, the stop-hook controller, session management, and shared utilities.
+Super-Ralph includes a comprehensive test suite with **176 bats tests** covering all gate libraries, the stop-hook controller, session management, exit detection, config validation, and shared utilities.
 
 ```bash
 # Install bats (macOS)
@@ -415,6 +416,7 @@ bats tests/
 # tests/test_stop_hook.bats      - Loop controller behavior
 # tests/test_session_manager.bats - Session persistence & expiry
 # tests/test_tmux_utils.bats     - TMUX monitoring utilities
+# tests/test_main_loop.bats      - Config validation & exit detection
 ```
 
 Key engineering features:

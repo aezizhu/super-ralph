@@ -5,22 +5,26 @@ All notable changes to Super-Ralph are documented in this file.
 ## [1.2.0] - 2026-02-09
 
 ### Added
-- **Session Manager library**: Extracted 6 session functions (~100 lines) from
-  super_ralph_loop.sh to standalone/lib/session_manager.sh for modularity
-- **TMUX Utils library**: Extracted tmux monitoring functions (~55 lines) to
-  standalone/lib/tmux_utils.sh
-- **`make release` target**: Automated version bumping across marketplace.json,
-  plugin.json, and super_ralph_loop.sh --version flag
-- **Session manager tests**: 16 new bats tests covering session persistence,
-  expiry, save/restore, and reset
-- **TMUX utils tests**: 3 new bats tests covering tmux availability checks
+- **Session Manager library**: Extracted session functions to lib/session_manager.sh
+- **TMUX Utils library**: Extracted tmux monitoring to lib/tmux_utils.sh
+- **Exit Detector library**: Extracted exit detection and config validation to
+  lib/exit_detector.sh with `should_exit_gracefully()` and `validate_ralphrc()`
+- **`make release` target**: Automated version bumping across all config files
+- **Config validation**: Validates numeric values, output format, and session
+  expiry after loading .ralphrc (prevents silent misconfiguration)
+- **Gate source validation**: tdd_gate.sh and verification_gate.sh check
+  gate_utils.sh exists before sourcing, with clear error messages
+- **46 new tests**: Session manager (16), TMUX utils (3), main loop (27) covering
+  validate_allowed_tools, load_ralphrc, should_exit_gracefully, validate_ralphrc
+- **Configurable context length**: `MAX_LOOP_CONTEXT_LENGTH` replaces hardcoded 800
 
 ### Improved
-- **Main loop reduced**: super_ralph_loop.sh down from 1411 to 1257 lines
-  through library extraction
-- **Stop-hook systemMessage**: Condensed methodology context from 25 lines to 8
-  lines while preserving all enforcement rules and skill routing
-- **Install.sh**: Now copies session_manager.sh and tmux_utils.sh during install
+- **Main loop reduced**: super_ralph_loop.sh down from 1411 to 1191 lines
+- **Stop-hook systemMessage**: Condensed from 25 to 8 lines
+- **Install.sh**: Copies all library files during install
+
+### Removed
+- **Dead code**: Removed unused `SUPER_RALPH_ENABLED` from installer template
 
 ## [1.1.1] - 2026-02-09
 

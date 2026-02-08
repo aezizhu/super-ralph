@@ -7,6 +7,11 @@ SUPER_RALPH_DIR="${SUPER_RALPH_DIR:-.ralph}"
 
 # Source shared utilities
 GATE_UTILS_DIR="$(dirname "${BASH_SOURCE[0]}")"
+if [[ ! -f "$GATE_UTILS_DIR/gate_utils.sh" ]]; then
+    echo "ERROR: gate_utils.sh not found at $GATE_UTILS_DIR" >&2
+    # shellcheck disable=SC2317
+    return 1 2>/dev/null || exit 1
+fi
 # shellcheck source=gate_utils.sh
 source "$GATE_UTILS_DIR/gate_utils.sh"
 

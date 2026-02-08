@@ -118,6 +118,7 @@ LIVE_OUTPUT=false
 
 MAX_CONSECUTIVE_TEST_LOOPS="${MAX_CONSECUTIVE_TEST_LOOPS:-3}"
 MAX_CONSECUTIVE_DONE_SIGNALS="${MAX_CONSECUTIVE_DONE_SIGNALS:-2}"
+MAX_LOOP_CONTEXT_LENGTH="${MAX_LOOP_CONTEXT_LENGTH:-800}"
 
 VALID_TOOL_PATTERNS=(
     "Write" "Read" "Edit" "MultiEdit" "Glob" "Grep"
@@ -343,7 +344,7 @@ build_superpowers_context() {
         fi
     fi
 
-    echo "${context:0:800}"
+    echo "${context:0:$MAX_LOOP_CONTEXT_LENGTH}"
 }
 
 record_methodology() {
@@ -602,7 +603,7 @@ build_loop_context() {
     fi
 
     # Limit total length
-    echo "${context:0:800}"
+    echo "${context:0:$MAX_LOOP_CONTEXT_LENGTH}"
 }
 
 # =============================================================================
@@ -877,86 +878,10 @@ EOF
 }
 
 # =============================================================================
-# GRACEFUL EXIT DETECTION
+# GRACEFUL EXIT DETECTION & CONFIG VALIDATION (extracted to lib/exit_detector.sh)
 # =============================================================================
 
-should_exit_gracefully() {
-    if [[ ! -f "$EXIT_SIGNALS_FILE" ]]; then
-        echo ""
-        return
-    fi
-
-    local signals
-    signals=$(cat "$EXIT_SIGNALS_FILE")
-
-    local recent_test_loops
-    recent_test_loops=$(echo "$signals" | jq '.test_only_loops | length' 2>/dev/null || echo "0")
-    local recent_done_signals
-    recent_done_signals=$(echo "$signals" | jq '.done_signals | length' 2>/dev/null || echo "0")
-    local recent_completion_indicators
-    recent_completion_indicators=$(echo "$signals" | jq '.completion_indicators | length' 2>/dev/null || echo "0")
-
-    # Permission denial detection
-    if [[ -f "$RESPONSE_ANALYSIS_FILE" ]]; then
-        local has_permission_denials
-        has_permission_denials=$(jq -r '.analysis.has_permission_denials // false' "$RESPONSE_ANALYSIS_FILE" 2>/dev/null || echo "false")
-        if [[ "$has_permission_denials" == "true" ]]; then
-            local denied_cmds
-            denied_cmds=$(jq -r '.analysis.denied_commands | join(", ")' "$RESPONSE_ANALYSIS_FILE" 2>/dev/null || echo "unknown")
-            log_status "WARN" "Permission denied for commands: $denied_cmds"
-            echo "permission_denied"
-            return
-        fi
-    fi
-
-    # Too many consecutive test-only loops
-    if [[ $recent_test_loops -ge $MAX_CONSECUTIVE_TEST_LOOPS ]]; then
-        echo "test_saturation"
-        return
-    fi
-
-    # Multiple done signals
-    if [[ $recent_done_signals -ge $MAX_CONSECUTIVE_DONE_SIGNALS ]]; then
-        echo "completion_signals"
-        return
-    fi
-
-    # Safety circuit breaker (5+ consecutive EXIT_SIGNAL=true)
-    if [[ $recent_completion_indicators -ge 5 ]]; then
-        log_status "WARN" "SAFETY CIRCUIT BREAKER: Force exit after 5 consecutive EXIT_SIGNAL=true"
-        echo "safety_circuit_breaker"
-        return
-    fi
-
-    # Strong completion + EXIT_SIGNAL=true from Claude
-    local claude_exit_signal="false"
-    if [[ -f "$RESPONSE_ANALYSIS_FILE" ]]; then
-        claude_exit_signal=$(jq -r '.analysis.exit_signal // false' "$RESPONSE_ANALYSIS_FILE" 2>/dev/null || echo "false")
-    fi
-
-    if [[ $recent_completion_indicators -ge 2 ]] && [[ "$claude_exit_signal" == "true" ]]; then
-        echo "project_complete"
-        return
-    fi
-
-    # Verification gate on exit signal
-    if all_tasks_complete 2>/dev/null; then
-        if [[ "$claude_exit_signal" == "true" ]]; then
-            local verified
-            verified=$(validate_exit_signal "$RESPONSE_ANALYSIS_FILE")
-            if [[ "$verified" == "true" ]]; then
-                echo "project_complete_verified"
-                return
-            else
-                log_status "WARN" "EXIT_SIGNAL=true but verification gate failed - continuing"
-            fi
-        fi
-        echo "plan_complete"
-        return
-    fi
-
-    echo ""
-}
+source "$SCRIPT_DIR/lib/exit_detector.sh"
 
 # =============================================================================
 # TMUX MONITORING (extracted to lib/tmux_utils.sh)
@@ -987,6 +912,10 @@ main() {
     if load_ralphrc; then
         if [[ "$RALPHRC_LOADED" == "true" ]]; then
             log_status "INFO" "Loaded configuration from .ralphrc"
+            if ! validate_ralphrc; then
+                log_status "ERROR" "Invalid configuration in .ralphrc"
+                exit 1
+            fi
         fi
     fi
 

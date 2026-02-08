@@ -104,6 +104,7 @@ install_super_ralph() {
     cp "$SCRIPT_DIR/lib/gate_utils.sh" "$SUPER_RALPH_HOME/lib/"
     cp "$SCRIPT_DIR/lib/session_manager.sh" "$SUPER_RALPH_HOME/lib/"
     cp "$SCRIPT_DIR/lib/tmux_utils.sh" "$SUPER_RALPH_HOME/lib/"
+    cp "$SCRIPT_DIR/lib/exit_detector.sh" "$SUPER_RALPH_HOME/lib/"
     chmod +x "$SUPER_RALPH_HOME/lib/"*.sh
 
     # Copy templates
@@ -204,7 +205,6 @@ CLAUDE_OUTPUT_FORMAT="json"
 # ALLOWED_TOOLS="Write,Read,Edit,Bash(git *),Bash(npm *),Bash(pytest),Bash(bats *)"
 SESSION_CONTINUITY=true
 SESSION_EXPIRY_HOURS=24
-SUPER_RALPH_ENABLED=true
 RCEOF
 
 # Initialize git
