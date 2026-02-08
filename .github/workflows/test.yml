@@ -1,0 +1,42 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            brew install bats-core
+          else
+            sudo apt-get update && sudo apt-get install -y bats
+          fi
+
+      - name: Install jq
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            brew install jq
+          else
+            sudo apt-get install -y jq
+          fi
+
+      - name: Run tests
+        run: bats tests/
+
+      - name: ShellCheck
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get install -y shellcheck
+          shellcheck standalone/lib/*.sh standalone/super_ralph_loop.sh standalone/install.sh plugins/super-ralph/hooks/stop-hook.sh || true

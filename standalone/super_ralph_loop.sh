@@ -424,7 +424,7 @@ wait_for_reset() {
     printf "\n"
 
     echo "0" > "$CALL_COUNT_FILE"
-    echo "$(date +%Y%m%d%H)" > "$TIMESTAMP_FILE"
+    date +%Y%m%d%H > "$TIMESTAMP_FILE"
     log_status "SUCCESS" "Rate limit reset. Ready for new calls."
 }
 
@@ -858,7 +858,7 @@ EOF
         # Only increment counter on success
         echo "$calls_made" > "$CALL_COUNT_FILE"
 
-        echo '{"status": "completed", "timestamp": "'$(date '+%Y-%m-%d %H:%M:%S')'"}' > "$PROGRESS_FILE"
+        printf '{"status": "completed", "timestamp": "%s"}' "$(date '+%Y-%m-%d %H:%M:%S')" > "$PROGRESS_FILE"
         log_status "SUCCESS" "Claude Code execution completed"
 
         # Save session for continuity
@@ -938,7 +938,7 @@ EOF
 
         return 0
     else
-        echo '{"status": "failed", "timestamp": "'$(date '+%Y-%m-%d %H:%M:%S')'"}' > "$PROGRESS_FILE"
+        printf '{"status": "failed", "timestamp": "%s"}' "$(date '+%Y-%m-%d %H:%M:%S')" > "$PROGRESS_FILE"
 
         if grep -qi "5.*hour.*limit\|limit.*reached.*try.*back\|usage.*limit.*reached" "$output_file" 2>/dev/null; then
             log_status "ERROR" "Claude API 5-hour usage limit reached"
@@ -1045,7 +1045,8 @@ check_tmux_available() {
 }
 
 setup_tmux_session() {
-    local session_name="super-ralph-$(date +%s)"
+    local session_name
+    session_name="super-ralph-$(date +%s)"
     local project_dir
     project_dir=$(pwd)
     local base_win
@@ -1228,7 +1229,7 @@ main() {
             echo -e "  ${GREEN}2)${NC} Exit the loop and try again later"
             echo -e "\n${BLUE}Choose an option (1 or 2):${NC} "
 
-            read -t 30 -n 1 user_choice
+            read -r -t 30 -n 1 user_choice
             echo
 
             if [[ "$user_choice" == "2" ]] || [[ -z "$user_choice" ]]; then

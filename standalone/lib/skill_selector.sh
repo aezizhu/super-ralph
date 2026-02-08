@@ -12,32 +12,32 @@ classify_task() {
     local task_lower
     task_lower=$(echo "$task_text" | tr '[:upper:]' '[:lower:]')
 
-    # Check for bug/fix patterns
-    if echo "$task_lower" | grep -qE '(fix|bug|error|broken|failing|crash|regression|issue|defect)'; then
+    # Check for bug/fix patterns (word boundaries prevent matching substrings like "tissue")
+    if echo "$task_lower" | grep -qE '\b(fix|bug|error|broken|failing|crash|regression|issue|defect)\b'; then
         echo "BUG"
         return 0
     fi
 
     # Check for review patterns
-    if echo "$task_lower" | grep -qE '(review|feedback|pr comment|code review)'; then
+    if echo "$task_lower" | grep -qE '\b(review|feedback|pr comment|code review)\b'; then
         echo "REVIEW"
         return 0
     fi
 
     # Check for new feature patterns
-    if echo "$task_lower" | grep -qE '(add|create|implement|build|new|feature|introduce|setup|initialize)'; then
+    if echo "$task_lower" | grep -qE '\b(add|create|implement|build|new|feature|introduce|setup|initialize)\b'; then
         echo "FEATURE"
         return 0
     fi
 
     # Check for refactor/improvement patterns (treated as plan tasks with TDD)
-    if echo "$task_lower" | grep -qE '(refactor|improve|optimize|update|migrate|upgrade|clean)'; then
+    if echo "$task_lower" | grep -qE '\b(refactor|improve|optimize|update|migrate|upgrade|clean)\b'; then
         echo "PLAN_TASK"
         return 0
     fi
 
     # Check for documentation/completion patterns
-    if echo "$task_lower" | grep -qE '(document|readme|complete|finalize|release|deploy)'; then
+    if echo "$task_lower" | grep -qE '\b(document|readme|complete|finalize|release|deploy)\b'; then
         echo "COMPLETION"
         return 0
     fi
@@ -95,14 +95,16 @@ has_design_doc() {
     feature_lower=$(echo "$feature_name" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
 
     # Check docs/plans/ for any matching design document
-    if ls docs/plans/*"${feature_lower}"*design* 2>/dev/null | head -1 | grep -q .; then
-        return 0
-    fi
+    local found=false
+    for f in docs/plans/*"${feature_lower}"*design*; do
+        if [[ -f "$f" ]]; then found=true; break; fi
+    done
+    if [[ "$found" == "true" ]]; then return 0; fi
 
     # Also check for any plan document
-    if ls docs/plans/*"${feature_lower}"* 2>/dev/null | head -1 | grep -q .; then
-        return 0
-    fi
+    for f in docs/plans/*"${feature_lower}"*; do
+        if [[ -f "$f" ]]; then return 0; fi
+    done
 
     return 1
 }
@@ -113,9 +115,9 @@ has_implementation_plan() {
     local feature_lower
     feature_lower=$(echo "$feature_name" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
 
-    if ls docs/plans/*"${feature_lower}"*.md 2>/dev/null | grep -v design | head -1 | grep -q .; then
-        return 0
-    fi
+    for f in docs/plans/*"${feature_lower}"*.md; do
+        if [[ -f "$f" ]] && [[ "$f" != *design* ]]; then return 0; fi
+    done
 
     return 1
 }

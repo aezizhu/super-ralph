@@ -7,6 +7,7 @@ SUPER_RALPH_DIR="${SUPER_RALPH_DIR:-.ralph}"
 
 # Source shared utilities
 GATE_UTILS_DIR="$(dirname "${BASH_SOURCE[0]}")"
+# shellcheck source=gate_utils.sh
 source "$GATE_UTILS_DIR/gate_utils.sh"
 
 # Colors
