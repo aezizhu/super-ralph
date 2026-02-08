@@ -99,6 +99,8 @@ _env_CLAUDE_ALLOWED_TOOLS="${CLAUDE_ALLOWED_TOOLS:-}"
 _env_CLAUDE_USE_CONTINUE="${CLAUDE_USE_CONTINUE:-}"
 _env_CLAUDE_SESSION_EXPIRY_HOURS="${CLAUDE_SESSION_EXPIRY_HOURS:-}"
 _env_VERBOSE_PROGRESS="${VERBOSE_PROGRESS:-}"
+_env_MAX_CONSECUTIVE_TEST_LOOPS="${MAX_CONSECUTIVE_TEST_LOOPS:-}"
+_env_MAX_CONSECUTIVE_DONE_SIGNALS="${MAX_CONSECUTIVE_DONE_SIGNALS:-}"
 
 MAX_CALLS_PER_HOUR="${MAX_CALLS_PER_HOUR:-100}"
 CLAUDE_TIMEOUT_MINUTES="${CLAUDE_TIMEOUT_MINUTES:-15}"
@@ -111,8 +113,8 @@ VERBOSE_PROGRESS="${VERBOSE_PROGRESS:-false}"
 USE_TMUX=false
 LIVE_OUTPUT=false
 
-MAX_CONSECUTIVE_TEST_LOOPS=3
-MAX_CONSECUTIVE_DONE_SIGNALS=2
+MAX_CONSECUTIVE_TEST_LOOPS="${MAX_CONSECUTIVE_TEST_LOOPS:-3}"
+MAX_CONSECUTIVE_DONE_SIGNALS="${MAX_CONSECUTIVE_DONE_SIGNALS:-2}"
 
 VALID_TOOL_PATTERNS=(
     "Write" "Read" "Edit" "MultiEdit" "Glob" "Grep"
@@ -184,6 +186,8 @@ load_ralphrc() {
     [[ -n "$_env_CLAUDE_USE_CONTINUE" ]] && CLAUDE_USE_CONTINUE="$_env_CLAUDE_USE_CONTINUE"
     [[ -n "$_env_CLAUDE_SESSION_EXPIRY_HOURS" ]] && CLAUDE_SESSION_EXPIRY_HOURS="$_env_CLAUDE_SESSION_EXPIRY_HOURS"
     [[ -n "$_env_VERBOSE_PROGRESS" ]] && VERBOSE_PROGRESS="$_env_VERBOSE_PROGRESS"
+    [[ -n "$_env_MAX_CONSECUTIVE_TEST_LOOPS" ]] && MAX_CONSECUTIVE_TEST_LOOPS="$_env_MAX_CONSECUTIVE_TEST_LOOPS"
+    [[ -n "$_env_MAX_CONSECUTIVE_DONE_SIGNALS" ]] && MAX_CONSECUTIVE_DONE_SIGNALS="$_env_MAX_CONSECUTIVE_DONE_SIGNALS"
 
     RALPHRC_LOADED=true
     return 0
@@ -394,11 +398,28 @@ can_make_call() {
 
 increment_call_counter() {
     local calls_made=0
-    if [[ -f "$CALL_COUNT_FILE" ]]; then
-        calls_made=$(cat "$CALL_COUNT_FILE")
+    local lock_file="${CALL_COUNT_FILE}.lock"
+
+    # Use flock if available for atomic read-increment-write
+    if command -v flock &>/dev/null; then
+        calls_made=$(
+            flock -w 5 "$lock_file" bash -c '
+                count=0
+                [[ -f "'"$CALL_COUNT_FILE"'" ]] && count=$(cat "'"$CALL_COUNT_FILE"'")
+                count=$((count + 1))
+                echo "$count" > "'"$CALL_COUNT_FILE"'"
+                echo "$count"
+            '
+        )
+    else
+        # Fallback without locking (macOS doesn't ship flock by default)
+        if [[ -f "$CALL_COUNT_FILE" ]]; then
+            calls_made=$(cat "$CALL_COUNT_FILE")
+        fi
+        ((calls_made++))
+        echo "$calls_made" > "$CALL_COUNT_FILE"
     fi
-    ((calls_made++))
-    echo "$calls_made" > "$CALL_COUNT_FILE"
+
     echo "$calls_made"
 }
 

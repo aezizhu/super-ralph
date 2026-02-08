@@ -1,5 +1,7 @@
 # Super-Ralph
 
+[![Tests](https://github.com/aezizhu/super-ralph/actions/workflows/test.yml/badge.svg)](https://github.com/aezizhu/super-ralph/actions/workflows/test.yml)
+
 **Ralph's autonomous development loop + Superpowers' disciplined methodology = production-ready autonomous AI development.**
 
 Super-Ralph fuses two proven open-source projects into a unified system:
@@ -388,6 +390,35 @@ Layer 1: INFRASTRUCTURE (Ralph Loop)
 **Dual Mode Operation:**
 - **With Ralph installed:** Reuses Ralph's circuit breaker, response analyzer, date/timeout utils, session management. Adds Super-Ralph methodology layer on top.
 - **Without Ralph:** Runs standalone with built-in rate limiting, call tracking, exit detection, and all Super-Ralph features.
+
+---
+
+## Development & Testing
+
+Super-Ralph includes a comprehensive test suite with **94 bats tests** covering all gate libraries, the stop-hook controller, and shared utilities.
+
+```bash
+# Install bats (macOS)
+brew install bats-core
+
+# Run all tests
+bats tests/
+
+# Test files:
+# tests/test_gate_utils.sh       - Shared pattern matching utilities
+# tests/test_skill_selector.bats - Task classification engine
+# tests/test_tdd_gate.bats       - TDD compliance enforcement
+# tests/test_verification_gate.bats - Completion claim validator
+# tests/test_stop_hook.bats      - Loop controller behavior
+```
+
+Key engineering features:
+- **Project auto-detection**: Automatically configures allowed tools based on project files (package.json, Cargo.toml, pyproject.toml, go.mod, etc.)
+- **Shared gate utilities**: Common pattern matching extracted into `lib/gate_utils.sh` for DRY gate libraries
+- **ShellCheck clean**: All bash scripts pass shellcheck static analysis
+- **CI/CD**: GitHub Actions workflow runs tests on macOS and Linux
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
 ---
 

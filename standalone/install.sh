@@ -173,11 +173,12 @@ AGENTEOF
 cat > .ralphrc << RCEOF
 # .ralphrc - Super-Ralph project configuration
 PROJECT_NAME="${PROJECT_NAME}"
-PROJECT_TYPE="generic"
 MAX_CALLS_PER_HOUR=100
 CLAUDE_TIMEOUT_MINUTES=15
 CLAUDE_OUTPUT_FORMAT="json"
-ALLOWED_TOOLS="Write,Read,Edit,Bash(git *),Bash(npm *),Bash(pytest),Bash(bats *)"
+# ALLOWED_TOOLS is auto-detected from project files (package.json, Cargo.toml, etc.)
+# Uncomment and customize to override auto-detection:
+# ALLOWED_TOOLS="Write,Read,Edit,Bash(git *),Bash(npm *),Bash(pytest),Bash(bats *)"
 SESSION_CONTINUITY=true
 SESSION_EXPIRY_HOURS=24
 SUPER_RALPH_ENABLED=true
