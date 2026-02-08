@@ -1294,6 +1294,7 @@ IMPORTANT: Run from a Super-Ralph project directory.
 
 Options:
     -h, --help              Show this help
+    --version               Show version
     -c, --calls NUM         Max API calls per hour (default: $MAX_CALLS_PER_HOUR)
     -p, --prompt FILE       Prompt file (default: $PROMPT_FILE)
     -s, --status            Show current status
@@ -1323,6 +1324,7 @@ HELPEOF
 while [[ $# -gt 0 ]]; do
     case $1 in
         -h|--help) show_help; exit 0 ;;
+        --version) echo "super-ralph 1.1.1"; exit 0 ;;
         -c|--calls) MAX_CALLS_PER_HOUR="$2"; shift 2 ;;
         -p|--prompt) PROMPT_FILE="$2"; shift 2 ;;
         -v|--verbose) VERBOSE_PROGRESS=true; shift ;;
@@ -1364,11 +1366,11 @@ while [[ $# -gt 0 ]]; do
             ;;
         -s|--status)
             if [[ -f "$STATUS_FILE" ]]; then
-                cat "$STATUS_FILE" | jq . 2>/dev/null || cat "$STATUS_FILE"
+                jq . "$STATUS_FILE" 2>/dev/null || cat "$STATUS_FILE"
                 if [[ -f "$METHODOLOGY_FILE" ]]; then
                     echo ""
                     echo "Methodology State:"
-                    cat "$METHODOLOGY_FILE" | jq . 2>/dev/null || cat "$METHODOLOGY_FILE"
+                    jq . "$METHODOLOGY_FILE" 2>/dev/null || cat "$METHODOLOGY_FILE"
                 fi
             else
                 echo "No status file found."
