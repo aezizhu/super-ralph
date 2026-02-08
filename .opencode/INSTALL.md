@@ -26,7 +26,7 @@ ln -s ~/.config/opencode/super-ralph/plugins/super-ralph/skills ~/.config/openco
 **Windows (PowerShell):**
 ```powershell
 New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.config\opencode\skills"
-cmd /c mklink /J "$env:USERPROFILE\.config\opencode\skills\super-ralph" "$env:USERPROFILE\.config\opencode\super-ralph\skills"
+cmd /c mklink /J "$env:USERPROFILE\.config\opencode\skills\super-ralph" "$env:USERPROFILE\.config\opencode\super-ralph\plugins\super-ralph\skills"
 ```
 
 ### 3. Restart OpenCode

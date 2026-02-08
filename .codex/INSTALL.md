@@ -22,7 +22,7 @@ Enable Super-Ralph skills in Codex via native skill discovery. Just clone and sy
    **Windows (PowerShell):**
    ```powershell
    New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.agents\skills"
-   cmd /c mklink /J "$env:USERPROFILE\.agents\skills\super-ralph" "$env:USERPROFILE\.codex\super-ralph\skills"
+   cmd /c mklink /J "$env:USERPROFILE\.agents\skills\super-ralph" "$env:USERPROFILE\.codex\super-ralph\plugins\super-ralph\skills"
    ```
 
 3. **Restart Codex** (quit and relaunch the CLI) to discover the skills.
