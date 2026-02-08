@@ -395,7 +395,7 @@ Layer 1: INFRASTRUCTURE (Ralph Loop)
 
 ## Development & Testing
 
-Super-Ralph includes a comprehensive test suite with **94 bats tests** covering all gate libraries, the stop-hook controller, and shared utilities.
+Super-Ralph includes a comprehensive test suite with **114 bats tests** covering all gate libraries, the stop-hook controller, and shared utilities.
 
 ```bash
 # Install bats (macOS)
@@ -405,7 +405,8 @@ brew install bats-core
 bats tests/
 
 # Test files:
-# tests/test_gate_utils.sh       - Shared pattern matching utilities
+# tests/test_auto_detect.bats    - Project type auto-detection
+# tests/test_gate_utils.bats     - Shared pattern matching utilities
 # tests/test_skill_selector.bats - Task classification engine
 # tests/test_tdd_gate.bats       - TDD compliance enforcement
 # tests/test_verification_gate.bats - Completion claim validator

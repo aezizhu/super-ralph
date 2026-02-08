@@ -70,6 +70,24 @@ Exit and reopen Claude Code. The 14 skills will be available immediately:
 /sr-writing-skills          TDD for skills — test scenarios before writing
 ```
 
+### Quick Start
+
+Once installed, here are the most common workflows:
+
+```bash
+# Start an autonomous improvement loop on your project
+/using-super-ralph "Improve test coverage and fix bugs" --max-iterations 10
+
+# Brainstorm a new feature design before coding
+/sr-brainstorming
+
+# Debug a failing test with systematic root cause analysis
+/sr-systematic-debugging
+
+# Get help and see all available commands
+/sr-help
+```
+
 ### Updating
 
 ```
@@ -79,6 +97,19 @@ Exit and reopen Claude Code. The 14 skills will be available immediately:
 ### Uninstalling
 
 Use `/plugin` to browse installed plugins and remove Super-Ralph.
+
+---
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| Skills not showing after install | Restart Claude Code completely (exit and reopen) |
+| Duplicate skills with Superpowers | Uninstall Superpowers: `/plugin` > select Superpowers > remove |
+| Loop stops unexpectedly | Set `export SUPER_RALPH_DEBUG=1` and check `.claude/super-ralph-debug.log` |
+| Stop hook not firing | Verify the hook is registered: check `.claude/settings.json` for `stop-hook.sh` entry |
+| `/using-super-ralph` not recognized | Ensure you completed both Step 1 (add marketplace) and Step 2 (install plugin) |
+| Skills trigger on simple tasks | Skills auto-trigger based on task type; use direct instructions to bypass |
 
 ---
 

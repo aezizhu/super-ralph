@@ -2,7 +2,25 @@
 
 All notable changes to Super-Ralph are documented in this file.
 
-## [1.1.0] - 2025-02-09
+## [1.1.1] - 2026-02-09
+
+### Added
+- **Red Flags sections**: Added to all SKILL.md files missing them (sr-brainstorming,
+  sr-writing-plans, sr-dispatching-parallel-agents, sr-executing-plans,
+  sr-receiving-code-review, sr-writing-skills, using-super-ralph)
+- **Related Skills sections**: Added cross-references to sr-brainstorming, sr-writing-plans,
+  sr-dispatching-parallel-agents, sr-receiving-code-review, sr-writing-skills,
+  sr-verification-before-completion
+- **Quick Start guide**: Added to plugin README with common workflow examples
+- **Troubleshooting table**: Added to plugin README covering common installation and
+  runtime issues
+
+### Fixed
+- **CHANGELOG dates**: Corrected year from 2025 to 2026
+- **Test file listing**: Fixed test_gate_utils filename in README (was .sh, now .bats)
+- **Test count**: Updated from 94 to 114 in README
+
+## [1.1.0] - 2026-02-09
 
 ### Added
 - **Test suite**: 114 bats tests across 6 test files covering all gate libraries,
@@ -48,7 +66,7 @@ All notable changes to Super-Ralph are documented in this file.
 - **Stop-hook diagnostics**: Better debug logging for jq parse failures, sed errors,
   and promise extraction
 
-## [1.0.0] - 2025-02-08
+## [1.0.0] - 2026-02-08
 
 ### Added
 - Initial release combining Ralph autonomous loop with Superpowers methodology
