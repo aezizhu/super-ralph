@@ -54,9 +54,38 @@ async function riskyOperation(input: string) {
 
 **NEVER fix just where the error appears.** Trace back to find the original trigger.
 
+## Bash Stack Traces
+
+For shell scripts, use `caller` to trace the call chain:
+
+```bash
+# Add to problematic function
+debug_trace() {
+  local frame=0
+  echo "DEBUG trace:" >&2
+  while caller $frame >&2; do
+    ((frame++))
+  done
+  echo "  cwd=$(pwd) args=$*" >&2
+}
+
+risky_operation() {
+  debug_trace "$@"
+  # ... proceed
+}
+```
+
+Or enable execution tracing for the entire script:
+
+```bash
+set -x    # Print every command before execution
+# ... debug section
+set +x    # Turn off tracing
+```
+
 ## Stack Trace Tips
 
-**In tests:** Use `console.error()` not logger - logger may be suppressed
+**In tests:** Use `>&2` (stderr) not stdout - test output may suppress stdout
 **Before operation:** Log before the dangerous operation, not after it fails
 **Include context:** Directory, cwd, environment variables, timestamps
-**Capture stack:** `new Error().stack` shows complete call chain
+**Capture stack:** `caller` builtin shows complete call chain in bash

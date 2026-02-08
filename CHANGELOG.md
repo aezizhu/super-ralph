@@ -15,9 +15,28 @@ All notable changes to Super-Ralph are documented in this file.
 - **Troubleshooting table**: Added to plugin README covering common installation and
   runtime issues
 
+### Improved
+- **CI workflow**: Install bats-core from source (not outdated apt package),
+  ShellCheck now fails build on errors, added version consistency check
+- **Install.sh portability**: Detect Linux distro (Debian, Fedora, Arch, Alpine,
+  openSUSE) and suggest appropriate package manager
+- **Install.sh completeness**: Copy gate_utils.sh during installation
+- **Code-quality-reviewer template**: Expanded with placeholder table and
+  usage instructions
+- **Root-cause-tracing**: Added bash-specific stack trace examples using
+  `caller` builtin and `set -x`
+- **Makefile**: Added version-check target for config file consistency
+
 ### Fixed
 - **CHANGELOG dates**: Corrected year from 2025 to 2026
 - **Test file listing**: Fixed test_gate_utils filename in README (was .sh, now .bats)
+- **Windows symlink paths**: Fixed .codex and .opencode INSTALL.md Windows
+  PowerShell commands to include plugins/super-ralph/ path segment
+- **skill_selector.sh**: Empty input now returns UNKNOWN (was silently defaulting
+  to PLAN_TASK)
+- **gate_utils.sh**: Replaced useless `cat | tr` with `tr < file`
+- **stop-hook.sh**: Validate frontmatter is non-empty before parsing fields
+- **Version sync**: marketplace.json and plugin.json now consistent at 1.1.1
 - **Test count**: Updated from 94 to 114 in README
 
 ## [1.1.0] - 2026-02-09
