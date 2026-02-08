@@ -92,9 +92,9 @@ teardown() {
     [ "$result" = "PLAN_TASK" ]
 }
 
-@test "classify_task: empty string defaults to PLAN_TASK" {
-    result=$(classify_task "")
-    [ "$result" = "PLAN_TASK" ]
+@test "classify_task: empty string returns UNKNOWN" {
+    result=$(classify_task "" || true)
+    [ "$result" = "UNKNOWN" ]
 }
 
 # BUG takes priority over FEATURE when both patterns match

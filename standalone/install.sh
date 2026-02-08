@@ -57,8 +57,28 @@ check_dependencies() {
 
     if [[ ${#missing_deps[@]} -ne 0 ]]; then
         log "ERROR" "Missing required dependencies: ${missing_deps[*]}"
-        echo "  macOS: brew install ${missing_deps[*]}"
-        echo "  Linux: sudo apt-get install ${missing_deps[*]}"
+        echo "  macOS:         brew install ${missing_deps[*]}"
+        if [[ -f /etc/os-release ]]; then
+            # shellcheck disable=SC1091
+            local distro_id
+            distro_id=$(. /etc/os-release && echo "${ID:-linux}")
+            case "$distro_id" in
+                ubuntu|debian|pop|mint|elementary)
+                    echo "  Linux (apt):   sudo apt-get install ${missing_deps[*]}" ;;
+                fedora|rhel|centos|rocky|alma)
+                    echo "  Linux (dnf):   sudo dnf install ${missing_deps[*]}" ;;
+                arch|manjaro|endeavouros)
+                    echo "  Linux (pacman): sudo pacman -S ${missing_deps[*]}" ;;
+                alpine)
+                    echo "  Linux (apk):   sudo apk add ${missing_deps[*]}" ;;
+                opensuse*|sles)
+                    echo "  Linux (zypper): sudo zypper install ${missing_deps[*]}" ;;
+                *)
+                    echo "  Linux:         Use your package manager to install ${missing_deps[*]}" ;;
+            esac
+        else
+            echo "  Linux:         Use your package manager to install ${missing_deps[*]}"
+        fi
         exit 1
     fi
 
@@ -81,6 +101,7 @@ install_super_ralph() {
     cp "$SCRIPT_DIR/lib/skill_selector.sh" "$SUPER_RALPH_HOME/lib/"
     cp "$SCRIPT_DIR/lib/tdd_gate.sh" "$SUPER_RALPH_HOME/lib/"
     cp "$SCRIPT_DIR/lib/verification_gate.sh" "$SUPER_RALPH_HOME/lib/"
+    cp "$SCRIPT_DIR/lib/gate_utils.sh" "$SUPER_RALPH_HOME/lib/"
     chmod +x "$SUPER_RALPH_HOME/lib/"*.sh
 
     # Copy templates

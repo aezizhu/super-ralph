@@ -35,6 +35,17 @@ debug "State file found: $RALPH_STATE_FILE"
 
 # Parse markdown frontmatter (YAML between ---) and extract values
 FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$RALPH_STATE_FILE") || true
+
+if [[ -z "$FRONTMATTER" ]]; then
+  echo "⚠️  Super-Ralph loop: State file has no frontmatter" >&2
+  echo "   File: $RALPH_STATE_FILE" >&2
+  echo "   Expected YAML between --- delimiters" >&2
+  echo "   Super-Ralph loop is stopping. Run /using-super-ralph again to start fresh." >&2
+  debug "ERROR: empty frontmatter from state file"
+  rm "$RALPH_STATE_FILE"
+  exit 0
+fi
+
 ITERATION=$(echo "$FRONTMATTER" | grep '^iteration:' | sed 's/iteration: *//' || true)
 MAX_ITERATIONS=$(echo "$FRONTMATTER" | grep '^max_iterations:' | sed 's/max_iterations: *//' || true)
 # Extract completion_promise and strip surrounding quotes if present

@@ -9,6 +9,13 @@ SUPER_RALPH_DIR="${SUPER_RALPH_DIR:-.ralph}"
 # Returns: FEATURE | BUG | PLAN_TASK | COMPLETION | REVIEW | UNKNOWN
 classify_task() {
     local task_text="$1"
+
+    # Empty input is invalid
+    if [[ -z "$task_text" ]]; then
+        echo "UNKNOWN"
+        return 1
+    fi
+
     local task_lower
     task_lower=$(echo "$task_text" | tr '[:upper:]' '[:lower:]')
 

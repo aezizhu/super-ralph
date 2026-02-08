@@ -49,7 +49,7 @@ read_lowercase() {
     if [[ ! -f "$file" ]]; then
         return 1
     fi
-    cat "$file" | tr '[:upper:]' '[:lower:]'
+    tr '[:upper:]' '[:lower:]' < "$file"
 }
 
 # Export functions
