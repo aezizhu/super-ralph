@@ -266,3 +266,41 @@ EOF
     result=$(count_remaining_tasks)
     [ "$result" = "0" ]
 }
+
+# ============================================================================
+# describe_workflow tests
+# ============================================================================
+
+@test "describe_workflow: includes task type and skills" {
+    result=$(describe_workflow "fix login bug")
+    [[ "$result" == *"BUG"* ]]
+    [[ "$result" == *"systematic-debugging"* ]]
+}
+
+@test "describe_workflow: shows FEATURE workflow" {
+    result=$(describe_workflow "add new dashboard")
+    [[ "$result" == *"FEATURE"* ]]
+    [[ "$result" == *"brainstorming"* ]]
+}
+
+# ============================================================================
+# has_design_doc tests
+# ============================================================================
+
+@test "has_design_doc: returns 1 when no docs directory" {
+    run has_design_doc "my-feature"
+    [ "$status" -eq 1 ]
+}
+
+@test "has_design_doc: returns 0 when matching design doc exists" {
+    mkdir -p docs/plans
+    touch "docs/plans/2026-01-01-my-feature-design.md"
+    run has_design_doc "my feature"
+    [ "$status" -eq 0 ]
+    rm -rf docs
+}
+
+@test "has_implementation_plan: returns 1 when no docs" {
+    run has_implementation_plan "my-feature"
+    [ "$status" -eq 1 ]
+}
