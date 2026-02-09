@@ -22,12 +22,20 @@ create_state_file() {
     local max_iterations="${2:-0}"
     local completion_promise="${3:-null}"
     local prompt="${4:-Do the work}"
+    local session_transcript="${5:-}"
+
+    local session_line=""
+    if [[ -n "$session_transcript" ]]; then
+        session_line="session_transcript: \"$session_transcript\""$'\n'
+    fi
 
     cat > "$TEST_DIR/.claude/super-ralph-loop.local.md" << EOF
 ---
-iteration: $iteration
+active: true
+${session_line}iteration: $iteration
 max_iterations: $max_iterations
 completion_promise: $completion_promise
+started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ---
 $prompt
 EOF
@@ -460,6 +468,7 @@ EOF
     # Test that prompts containing --- don't break the awk parser
     cat > "$TEST_DIR/.claude/super-ralph-loop.local.md" << 'EOF'
 ---
+active: true
 iteration: 1
 max_iterations: 0
 completion_promise: null
@@ -483,4 +492,116 @@ EOF
     # Prompt should include content after closing frontmatter ---
     [[ "$reason" == *"Build the feature"* ]]
     [[ "$reason" == *"Continue working"* ]]
+}
+
+# ============================================================================
+# Session isolation tests
+# ============================================================================
+
+@test "stop-hook: session mismatch allows exit WITHOUT deleting state file" {
+    # Session A owns the loop
+    create_state_file 3 0 "null" "Do the work" "/path/to/session-A/transcript.jsonl"
+    local transcript
+    transcript=$(create_transcript "Working")
+    # Session B triggers the hook (different transcript_path)
+    local hook_input
+    hook_input=$(create_hook_input "$transcript")
+
+    run bash -c "echo '$hook_input' | bash '$HOOK_SCRIPT'"
+    [ "$status" -eq 0 ]
+
+    # Should NOT output block decision (not our loop)
+    if echo "$output" | jq -e '.decision' 2>/dev/null; then
+        local decision
+        decision=$(echo "$output" | jq -r '.decision' 2>/dev/null)
+        [ "$decision" != "block" ]
+    fi
+
+    # CRITICAL: state file must still exist (belongs to session A)
+    [ -f "$TEST_DIR/.claude/super-ralph-loop.local.md" ]
+
+    # Verify session_transcript is unchanged
+    local stored
+    stored=$(grep 'session_transcript' "$TEST_DIR/.claude/super-ralph-loop.local.md" || true)
+    [[ "$stored" == *"session-A"* ]]
+}
+
+@test "stop-hook: same session continues loop" {
+    local transcript
+    transcript=$(create_transcript "Working on it")
+    # Create state file owned by THIS transcript
+    create_state_file 2 0 "null" "Do the work" "$transcript"
+    local hook_input
+    hook_input=$(create_hook_input "$transcript")
+
+    run bash -c "echo '$hook_input' | bash '$HOOK_SCRIPT'"
+    [ "$status" -eq 0 ]
+
+    local decision
+    decision=$(echo "$output" | jq -r '.decision' 2>/dev/null)
+    [ "$decision" = "block" ]
+}
+
+@test "stop-hook: recent unclaimed file gets claimed by first session" {
+    # State file just created, no session_transcript yet
+    create_state_file 1 0
+    local transcript
+    transcript=$(create_transcript "Working")
+    local hook_input
+    hook_input=$(create_hook_input "$transcript")
+
+    run bash -c "echo '$hook_input' | bash '$HOOK_SCRIPT'"
+    [ "$status" -eq 0 ]
+
+    # Should block exit (claimed the loop)
+    local decision
+    decision=$(echo "$output" | jq -r '.decision' 2>/dev/null)
+    [ "$decision" = "block" ]
+
+    # Should have written session_transcript to state file
+    local stored
+    stored=$(grep 'session_transcript' "$TEST_DIR/.claude/super-ralph-loop.local.md" || true)
+    [[ "$stored" == *"$transcript"* ]]
+}
+
+@test "stop-hook: old unclaimed file treated as stale" {
+    # Create state file with no session_transcript
+    create_state_file 1 0
+    # Make the file appear old (10 minutes ago)
+    touch -t "$(date -v-10M +%Y%m%d%H%M.%S 2>/dev/null || date -d '10 minutes ago' +%Y%m%d%H%M.%S 2>/dev/null)" "$TEST_DIR/.claude/super-ralph-loop.local.md"
+
+    local transcript
+    transcript=$(create_transcript "Working")
+    local hook_input
+    hook_input=$(create_hook_input "$transcript")
+
+    run bash -c "echo '$hook_input' | bash '$HOOK_SCRIPT'"
+    [ "$status" -eq 0 ]
+
+    # Should NOT block (stale file)
+    if echo "$output" | jq -e '.decision' 2>/dev/null; then
+        local decision
+        decision=$(echo "$output" | jq -r '.decision' 2>/dev/null)
+        [ "$decision" != "block" ]
+    fi
+
+    # Stale file should be cleaned up
+    [ ! -f "$TEST_DIR/.claude/super-ralph-loop.local.md" ]
+}
+
+@test "stop-hook: session mismatch preserves iteration count of other session" {
+    # Session A is at iteration 7
+    create_state_file 7 20 "null" "Build API" "/path/to/session-A/transcript.jsonl"
+    local transcript
+    transcript=$(create_transcript "Done")
+    local hook_input
+    hook_input=$(create_hook_input "$transcript")
+
+    run bash -c "echo '$hook_input' | bash '$HOOK_SCRIPT'"
+    [ "$status" -eq 0 ]
+
+    # Session A's iteration must be preserved
+    local iter
+    iter=$(grep '^iteration:' "$TEST_DIR/.claude/super-ralph-loop.local.md" | sed 's/iteration: *//')
+    [ "$iter" = "7" ]
 }

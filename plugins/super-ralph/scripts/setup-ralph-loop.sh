@@ -133,6 +133,17 @@ fi
 # Create state file for stop hook (markdown with YAML frontmatter)
 mkdir -p .claude
 
+# Check for existing active loop from another session
+STATE_FILE=".claude/super-ralph-loop.local.md"
+if [[ -f "$STATE_FILE" ]]; then
+  EXISTING_SESSION=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$STATE_FILE" | grep '^session_transcript:' | sed 's/session_transcript: *//' | sed 's/^"\(.*\)"$/\1/' || true)
+  if [[ -n "$EXISTING_SESSION" ]]; then
+    echo "⚠️  Warning: Another session has an active Super-Ralph loop in this directory." >&2
+    echo "   Overwriting it with your new loop." >&2
+    echo "" >&2
+  fi
+fi
+
 # Quote completion promise for YAML if it contains special chars or is not null
 if [[ -n "$COMPLETION_PROMISE" ]] && [[ "$COMPLETION_PROMISE" != "null" ]]; then
   COMPLETION_PROMISE_YAML="\"$COMPLETION_PROMISE\""

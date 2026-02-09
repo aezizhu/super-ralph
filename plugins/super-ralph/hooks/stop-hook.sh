@@ -117,16 +117,25 @@ debug "Transcript: $TRANSCRIPT_PATH"
 STORED_SESSION=$(echo "$FRONTMATTER" | grep '^session_transcript:' | sed 's/session_transcript: *//' | sed 's/^"\(.*\)"$/\1/' || true)
 
 if [[ -z "$STORED_SESSION" ]]; then
-  # First hook invocation for this loop — record session ownership
+  # No session_transcript yet — the loop was just created but the hook hasn't
+  # claimed it. Check if this is OUR loop (recent) or a stale orphan (old).
+  # `find -mmin +5` matches files modified more than 5 minutes ago (works on macOS + Linux).
+  if [[ -n $(find "$RALPH_STATE_FILE" -mmin +5 2>/dev/null) ]]; then
+    # State file is old and unclaimed — stale from a crashed session
+    debug "Stale unclaimed state file (>5 min old) — cleaning up"
+    echo "⚠️  Super-Ralph loop: Stale unclaimed state file from a crashed session." >&2
+    echo "   Cleaning up and allowing exit." >&2
+    rm -f "$RALPH_STATE_FILE"
+    exit 0
+  fi
+  # Recent file — claim ownership for this session
   debug "Recording session ownership: $TRANSCRIPT_PATH"
   sed -i.bak "s|^active: true|active: true\nsession_transcript: \"$TRANSCRIPT_PATH\"|" "$RALPH_STATE_FILE"
   rm -f "${RALPH_STATE_FILE}.bak"
 elif [[ "$STORED_SESSION" != "$TRANSCRIPT_PATH" ]]; then
-  # Different session — stale state file from a previous session
-  echo "⚠️  Super-Ralph loop: Stale loop from a previous session detected." >&2
-  echo "   Cleaning up and allowing exit." >&2
-  debug "Session mismatch: stored=$STORED_SESSION current=$TRANSCRIPT_PATH"
-  rm "$RALPH_STATE_FILE"
+  # Different session owns this loop — DO NOT delete their state file.
+  # Just allow this session to exit without interfering.
+  debug "Session mismatch: stored=$STORED_SESSION current=$TRANSCRIPT_PATH — not our loop, allowing exit"
   exit 0
 fi
 
