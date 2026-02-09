@@ -150,3 +150,83 @@ teardown() {
     [[ "$result" != *"Bash(cargo *)"* ]]
     [[ "$result" != *"Bash(python *)"* ]]
 }
+
+@test "detect_project_tools: detects Kotlin Gradle project" {
+    touch build.gradle.kts
+    result=$(detect_project_tools)
+    [[ "$result" == *"Bash(gradle *)"* ]]
+    [[ "$result" == *"Bash(./gradlew *)"* ]]
+    [[ "$result" == *"Bash(java *)"* ]]
+}
+
+@test "detect_project_tools: detects Python project (setup.py)" {
+    touch setup.py
+    result=$(detect_project_tools)
+    [[ "$result" == *"Bash(python *)"* ]]
+}
+
+@test "detect_project_tools: detects Python project (setup.cfg)" {
+    touch setup.cfg
+    result=$(detect_project_tools)
+    [[ "$result" == *"Bash(python *)"* ]]
+}
+
+@test "detect_project_tools: detects uv project" {
+    touch pyproject.toml uv.lock
+    result=$(detect_project_tools)
+    [[ "$result" == *"Bash(uv *)"* ]]
+}
+
+@test "detect_project_tools: detects bun via bunfig.toml" {
+    echo '{}' > package.json
+    touch bunfig.toml
+    result=$(detect_project_tools)
+    [[ "$result" == *"Bash(bun *)"* ]]
+}
+
+@test "detect_project_tools: detects Elixir project" {
+    touch mix.exs
+    result=$(detect_project_tools)
+    [[ "$result" == *"Bash(mix *)"* ]]
+    [[ "$result" == *"Bash(elixir *)"* ]]
+    [[ "$result" == *"Bash(iex *)"* ]]
+}
+
+@test "detect_project_tools: detects PHP project" {
+    echo '{}' > composer.json
+    result=$(detect_project_tools)
+    [[ "$result" == *"Bash(php *)"* ]]
+    [[ "$result" == *"Bash(composer *)"* ]]
+    [[ "$result" == *"Bash(phpunit *)"* ]]
+}
+
+@test "detect_project_tools: detects .NET project (csproj)" {
+    touch app.csproj
+    result=$(detect_project_tools)
+    [[ "$result" == *"Bash(dotnet *)"* ]]
+}
+
+@test "detect_project_tools: detects .NET project (sln)" {
+    touch app.sln
+    result=$(detect_project_tools)
+    [[ "$result" == *"Bash(dotnet *)"* ]]
+}
+
+@test "detect_project_tools: detects .NET project (global.json)" {
+    echo '{}' > global.json
+    result=$(detect_project_tools)
+    [[ "$result" == *"Bash(dotnet *)"* ]]
+}
+
+@test "detect_project_tools: detects docker-compose.yml" {
+    touch docker-compose.yml
+    result=$(detect_project_tools)
+    [[ "$result" == *"Bash(docker *)"* ]]
+    [[ "$result" == *"Bash(docker-compose *)"* ]]
+}
+
+@test "detect_project_tools: detects docker-compose.yaml" {
+    touch docker-compose.yaml
+    result=$(detect_project_tools)
+    [[ "$result" == *"Bash(docker-compose *)"* ]]
+}

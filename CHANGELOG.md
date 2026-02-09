@@ -27,7 +27,12 @@ All notable changes to Super-Ralph are documented in this file.
   with boundary values
 - **TMUX utils tests**: Expanded from 3 to 12 tests covering command assembly
   for all configuration options (--calls, --prompt, --verbose, --timeout, etc.)
-- **297 bats tests** total across 13 test files
+- **Auto-detect test expansion**: 31 tests covering Kotlin Gradle, setup.py,
+  setup.cfg, uv.lock, bunfig.toml, Elixir, PHP, .NET (csproj/sln/global.json),
+  docker-compose variants, and multi-language projects
+- **Test deduplication**: Moved detect_project_tools and exit detection tests
+  to dedicated test files, eliminating duplicated inline function definitions
+- **295 bats tests** total across 13 test files
 
 ### Improved
 - **Self-contained libraries**: tmux_utils.sh, session_manager.sh, and

@@ -399,7 +399,7 @@ Layer 1: INFRASTRUCTURE (Ralph Loop)
 
 ## Development & Testing
 
-Super-Ralph includes a comprehensive test suite with **297 bats tests** across 13 test files covering all gate libraries, the stop-hook controller, session management, exit detection, config validation, rate limiting, logging, project setup, SKILL.md consistency, and shared utilities.
+Super-Ralph includes a comprehensive test suite with **295 bats tests** across 13 test files covering all gate libraries, the stop-hook controller, session management, exit detection, config validation, rate limiting, logging, project setup, SKILL.md consistency, and shared utilities.
 
 ```bash
 # Install bats (macOS)
@@ -425,7 +425,7 @@ Test files:
 
 | File | Coverage |
 |------|----------|
-| `tests/test_auto_detect.bats` | Project type auto-detection |
+| `tests/test_auto_detect.bats` | Project type auto-detection (31 tests) |
 | `tests/test_gate_utils.bats` | Shared pattern matching utilities |
 | `tests/test_skill_selector.bats` | Task classification engine (52 tests) |
 | `tests/test_tdd_gate.bats` | TDD compliance enforcement |
@@ -434,7 +434,7 @@ Test files:
 | `tests/test_session_manager.bats` | Session persistence and expiry |
 | `tests/test_tmux_utils.bats` | TMUX monitoring and command assembly (12 tests) |
 | `tests/test_exit_detector.bats` | Exit detection and config validation (36 tests) |
-| `tests/test_main_loop.bats` | Rate limiting and auto-detection (48 tests) |
+| `tests/test_main_loop.bats` | Validate tools, load config, and rate limiting (34 tests) |
 | `tests/test_setup.bats` | Project scaffolding and SKILL.md consistency validation |
 | `tests/test_logging.bats` | Shared logging and color constants |
 | `tests/test_install.bats` | Installation, uninstallation, and PATH detection (16 tests) |
