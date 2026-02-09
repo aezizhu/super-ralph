@@ -266,6 +266,21 @@ detect_project_tools() {
         detected_tools+=",Bash(ruby *),Bash(bundle *),Bash(rake *),Bash(rspec *)"
     fi
 
+    # Elixir
+    if [[ -f "mix.exs" ]]; then
+        detected_tools+=",Bash(mix *),Bash(elixir *),Bash(iex *)"
+    fi
+
+    # PHP
+    if [[ -f "composer.json" ]]; then
+        detected_tools+=",Bash(php *),Bash(composer *),Bash(phpunit *)"
+    fi
+
+    # .NET / C#
+    if ls ./*.csproj &>/dev/null || ls ./*.sln &>/dev/null || [[ -f "global.json" ]]; then
+        detected_tools+=",Bash(dotnet *)"
+    fi
+
     # Shell / Bash testing
     detected_tools+=",Bash(bats *)"
 
@@ -449,6 +464,23 @@ update_status() {
     "mode": "super-ralph"
 }
 STATUSEOF
+}
+
+# =============================================================================
+# GIT DIFF HELPERS
+# =============================================================================
+
+count_changed_files() {
+    local start_sha="${1:-}"
+    local current_sha="${2:-}"
+
+    {
+        if [[ -n "$start_sha" && -n "$current_sha" && "$start_sha" != "$current_sha" ]]; then
+            git diff --name-only "$start_sha" "$current_sha" 2>/dev/null
+        fi
+        git diff --name-only 2>/dev/null
+        git diff --name-only --cached 2>/dev/null
+    } | sort -u | wc -l
 }
 
 # =============================================================================
@@ -800,23 +832,7 @@ EOF
 
             if command -v git &>/dev/null && git rev-parse --git-dir &>/dev/null 2>&1; then
                 current_sha=$(git rev-parse HEAD 2>/dev/null || echo "")
-
-                if [[ -n "$loop_start_sha" && -n "$current_sha" && "$loop_start_sha" != "$current_sha" ]]; then
-                    files_changed=$(
-                        {
-                            git diff --name-only "$loop_start_sha" "$current_sha" 2>/dev/null
-                            git diff --name-only HEAD 2>/dev/null
-                            git diff --name-only --cached 2>/dev/null
-                        } | sort -u | wc -l
-                    )
-                else
-                    files_changed=$(
-                        {
-                            git diff --name-only 2>/dev/null
-                            git diff --name-only --cached 2>/dev/null
-                        } | sort -u | wc -l
-                    )
-                fi
+                files_changed=$(count_changed_files "$loop_start_sha" "$current_sha")
             fi
 
             local has_errors="false"

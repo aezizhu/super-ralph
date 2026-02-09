@@ -14,9 +14,15 @@ All notable changes to Super-Ralph are documented in this file.
 - **Full validate_allowed_tools coverage**: 8 additional tests for MultiEdit,
   Glob, Grep, Task, TodoWrite, WebFetch, WebSearch, NotebookEdit, and all
   Bash patterns
+- **Auto-detect tests**: 14 tests for detect_project_tools covering Node.js,
+  Python, Rust, Go, Ruby, Elixir, PHP, .NET, Docker, Make, and lockfile variants
+- **Elixir/PHP/.NET detection**: `detect_project_tools` now recognizes mix.exs,
+  composer.json, and *.csproj/*.sln/global.json
+- **`count_changed_files` helper**: Extracted duplicated git diff file counting
+  into a reusable function
 - **Makefile targets**: `make clean` (remove artifacts), `make test-file FILE=...`
   (run single test file)
-- **251 bats tests** total across 12 test files
+- **265 bats tests** total across 12 test files
 
 ### Improved
 - **Self-contained libraries**: tmux_utils.sh, session_manager.sh, and
