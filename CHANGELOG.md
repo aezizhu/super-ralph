@@ -24,13 +24,25 @@ All notable changes to Super-Ralph are documented in this file.
 - **Configurable timing constants**: `PROGRESS_CHECK_INTERVAL`, `POST_EXECUTION_PAUSE`,
   `RETRY_BACKOFF_SECONDS`, `RATE_LIMIT_RETRY_SECONDS` replace hardcoded values
 
+- **6 stop-hook tests**: Methodology context verification (skill routing table,
+  enforcement rules), system message format (promise instructions, infinite mode),
+  multiline promise extraction (perl path), and --- delimiter resilience
+- **8 skill selector tests**: New BUG patterns (repair, correct, hotfix, patch) and
+  FEATURE patterns (enhance, extend, expand), plus whitespace-only input handling
+- **1 gate_utils test**: Read permission check for unreadable files
+
 ### Improved
 - **Main loop reduced**: super_ralph_loop.sh down from 1411 to 1191 lines
 - **Stop-hook systemMessage**: Condensed from 25 to 8 lines
-- **Install.sh**: Copies all library files during install
+- **Install.sh**: Copies all library files during install; uninstall verifies removal
 - **SKILL.md consistency**: All 14 skills now have standardized `## Related Skills`
   sections and consistent YAML frontmatter (unquoted, "Use when" prefix)
 - **Lint flag sync**: Makefile shellcheck flags match CI workflow
+- **CI simplified**: Workflow uses `make test`/`make lint`/`make version-check` targets
+- **Skill classifier expanded**: BUG patterns now include resolve, repair, correct,
+  hotfix, patch; FEATURE patterns include enhance, extend, expand
+- **gate_utils hardened**: `read_lowercase()` checks file read permissions and handles
+  `tr` errors gracefully
 
 ### Removed
 - **Dead code**: Removed unused `SUPER_RALPH_ENABLED` from installer template

@@ -121,7 +121,7 @@ The bash system replicates and extends Ralph's autonomous loop infrastructure:
 | Component | File | Description |
 |-----------|------|-------------|
 | **Main Loop** | `standalone/super_ralph_loop.sh` | The autonomous development loop. Runs Claude Code in a loop with rate limiting (configurable calls/hour), circuit breaker pattern (stops after repeated failures), intelligent exit detection (dual-condition gate: completion indicators + EXIT_SIGNAL), and session continuity. Injects Super-Ralph methodology context via `--append-system-prompt` on every iteration. Operates in dual mode: reuses Ralph's libraries when installed, or runs standalone with built-in infrastructure. |
-| **Skill Selector** | `standalone/lib/skill_selector.sh` | Classifies tasks from `fix_plan.md` into types (FEATURE, BUG, PLAN_TASK, REVIEW, COMPLETION) and maps each type to the appropriate Super-Ralph skill workflow chain. For example, a FEATURE triggers brainstorming -> writing-plans -> TDD, while a BUG triggers systematic-debugging -> TDD. Provides functions: `classify_task()`, `get_skill_workflow()`, `get_current_task()`, `has_design_doc()`, `has_implementation_plan()`, `all_tasks_complete()`, `count_remaining_tasks()`. |
+| **Skill Selector** | `standalone/lib/skill_selector.sh` | Classifies tasks from `fix_plan.md` into types (FEATURE, BUG, PLAN_TASK, REVIEW, COMPLETION) and maps each type to the appropriate Super-Ralph skill workflow chain. For example, a FEATURE triggers brainstorming -> writing-plans -> TDD, while a BUG triggers systematic-debugging -> TDD. Recognizes broad vocabulary: BUG (fix, bug, error, broken, crash, regression, resolve, repair, correct, hotfix, patch), FEATURE (add, create, implement, build, enhance, extend, expand), and more. Provides functions: `classify_task()`, `get_skill_workflow()`, `get_current_task()`, `has_design_doc()`, `has_implementation_plan()`, `all_tasks_complete()`, `count_remaining_tasks()`. |
 | **TDD Gate** | `standalone/lib/tdd_gate.sh` | Analyzes Claude's output for TDD compliance. Pattern-matches against RED indicators (test written, test fails, failing test), GREEN indicators (test passes, all tests pass, tests green), and VIOLATION indicators (skip test, implement first, test later, no test needed). Produces a JSON compliance report with pass/fail status. Functions: `check_tdd_compliance()`, `analyze_tdd_status()`, `log_tdd_summary()`, `get_tdd_enforcement_context()`. |
 | **Verification Gate** | `standalone/lib/verification_gate.sh` | Detects unverified completion claims vs evidence-based claims. Matches UNVERIFIED patterns ("should pass", "looks correct", "probably works", "seems to") against VERIFIED patterns ("34/34 pass", "exit code 0", "0 failures", "all tests pass"). Blocks exit signals that lack verification evidence. Functions: `check_verification()`, `analyze_verification_status()`, `log_verification_summary()`, `validate_exit_signal()`. |
 | **Session Manager** | `standalone/lib/session_manager.sh` | Manages Claude session persistence with expiry tracking. Handles cross-platform file age detection (GNU/BSD stat), session initialization, save/restore, and reset. Functions: `get_session_file_age_hours()`, `init_claude_session()`, `save_claude_session()`, `init_session_tracking()`, `update_session_last_used()`, `reset_session()`. |
@@ -405,26 +405,43 @@ Super-Ralph includes a comprehensive test suite with **219 bats tests** covering
 brew install bats-core
 
 # Run all tests
-bats tests/
+make test
 
-# Test files:
-# tests/test_auto_detect.bats    - Project type auto-detection
-# tests/test_gate_utils.bats     - Shared pattern matching utilities
-# tests/test_skill_selector.bats - Task classification engine
-# tests/test_tdd_gate.bats       - TDD compliance enforcement
-# tests/test_verification_gate.bats - Completion claim validator
-# tests/test_stop_hook.bats      - Loop controller behavior
-# tests/test_session_manager.bats - Session persistence & expiry
-# tests/test_tmux_utils.bats     - TMUX monitoring utilities
-# tests/test_main_loop.bats      - Config validation, exit detection & rate limiting
-# tests/test_setup.bats          - Project scaffolding integration tests
+# Run all checks (lint + test + version consistency)
+make check
+
+# Run a specific test file
+bats tests/test_skill_selector.bats
+
+# Lint all scripts with ShellCheck
+make lint
+
+# Bump version across all config files
+make release VERSION=x.y.z
 ```
 
+Test files:
+
+| File | Coverage |
+|------|----------|
+| `tests/test_auto_detect.bats` | Project type auto-detection |
+| `tests/test_gate_utils.bats` | Shared pattern matching utilities |
+| `tests/test_skill_selector.bats` | Task classification engine (52 tests) |
+| `tests/test_tdd_gate.bats` | TDD compliance enforcement |
+| `tests/test_verification_gate.bats` | Completion claim validator |
+| `tests/test_stop_hook.bats` | Loop controller behavior (25 tests) |
+| `tests/test_session_manager.bats` | Session persistence and expiry |
+| `tests/test_tmux_utils.bats` | TMUX monitoring utilities |
+| `tests/test_main_loop.bats` | Config validation, exit detection, and rate limiting |
+| `tests/test_setup.bats` | Project scaffolding and SKILL.md consistency validation |
+
 Key engineering features:
+- **Configurable constants**: All timing values, thresholds, and limits are environment-variable configurable (`MAX_CALLS_PER_HOUR`, `RETRY_BACKOFF_SECONDS`, `RATE_LIMIT_RETRY_SECONDS`, `MAX_LOOP_CONTEXT_LENGTH`, etc.)
+- **7 extracted libraries**: Session management, TMUX utils, exit detection, skill selection, TDD gate, verification gate, and shared gate utilities -- each independently testable
+- **SKILL.md consistency**: All 14 skills have standardized YAML frontmatter (`name`, `description` starting with "Use when"), and `## Related Skills` cross-references, validated by CI tests
 - **Project auto-detection**: Automatically configures allowed tools based on project files (package.json, Cargo.toml, pyproject.toml, go.mod, etc.)
-- **Shared gate utilities**: Common pattern matching extracted into `lib/gate_utils.sh` for DRY gate libraries
 - **ShellCheck clean**: All bash scripts pass shellcheck static analysis
-- **CI/CD**: GitHub Actions workflow runs tests on macOS and Linux
+- **CI/CD**: GitHub Actions workflow runs `make test`, `make lint`, and `make version-check` on macOS and Linux
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
