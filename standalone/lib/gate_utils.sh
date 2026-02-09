@@ -46,10 +46,10 @@ collect_pattern_details() {
 # Returns: lowercase content via stdout
 read_lowercase() {
     local file="$1"
-    if [[ ! -f "$file" ]]; then
+    if [[ ! -f "$file" ]] || [[ ! -r "$file" ]]; then
         return 1
     fi
-    tr '[:upper:]' '[:lower:]' < "$file"
+    tr '[:upper:]' '[:lower:]' < "$file" 2>/dev/null || return 1
 }
 
 # Export functions

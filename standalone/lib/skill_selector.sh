@@ -10,8 +10,8 @@ SUPER_RALPH_DIR="${SUPER_RALPH_DIR:-.ralph}"
 classify_task() {
     local task_text="$1"
 
-    # Empty input is invalid
-    if [[ -z "$task_text" ]]; then
+    # Empty or whitespace-only input is invalid
+    if [[ -z "$task_text" ]] || [[ "$task_text" =~ ^[[:space:]]*$ ]]; then
         echo "UNKNOWN"
         return 1
     fi
@@ -20,7 +20,7 @@ classify_task() {
     task_lower=$(echo "$task_text" | tr '[:upper:]' '[:lower:]')
 
     # Check for bug/fix patterns (word boundaries prevent matching substrings like "tissue")
-    if echo "$task_lower" | grep -qE '\b(fix|bug|error|broken|failing|crash|regression|issue|defect)\b'; then
+    if echo "$task_lower" | grep -qE '\b(fix|bug|error|broken|failing|crash|regression|issue|defect|resolve|repair|correct|hotfix|patch)\b'; then
         echo "BUG"
         return 0
     fi
@@ -32,7 +32,7 @@ classify_task() {
     fi
 
     # Check for new feature patterns
-    if echo "$task_lower" | grep -qE '\b(add|create|implement|build|new|feature|introduce|setup|initialize)\b'; then
+    if echo "$task_lower" | grep -qE '\b(add|create|implement|build|new|feature|introduce|setup|initialize|enhance|extend|expand)\b'; then
         echo "FEATURE"
         return 0
     fi

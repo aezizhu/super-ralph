@@ -102,6 +102,14 @@ teardown() {
     [ "$status" -eq 1 ]
 }
 
+@test "read_lowercase: returns error for unreadable file" {
+    touch "$BATS_TEST_DIR/noperm.txt"
+    chmod 000 "$BATS_TEST_DIR/noperm.txt"
+    run read_lowercase "$BATS_TEST_DIR/noperm.txt"
+    [ "$status" -eq 1 ]
+    chmod 644 "$BATS_TEST_DIR/noperm.txt"
+}
+
 @test "read_lowercase: handles empty file" {
     touch "$BATS_TEST_DIR/empty.txt"
     result=$(read_lowercase "$BATS_TEST_DIR/empty.txt")

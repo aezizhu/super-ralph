@@ -130,6 +130,51 @@ teardown() {
 }
 
 # ============================================================================
+# New pattern coverage tests
+# ============================================================================
+
+@test "classify_task: 'repair authentication flow' returns BUG" {
+    result=$(classify_task "repair authentication flow")
+    [ "$result" = "BUG" ]
+}
+
+@test "classify_task: 'correct the output format' returns BUG" {
+    result=$(classify_task "correct the output format")
+    [ "$result" = "BUG" ]
+}
+
+@test "classify_task: 'apply hotfix for login' returns BUG" {
+    result=$(classify_task "apply hotfix for login")
+    [ "$result" = "BUG" ]
+}
+
+@test "classify_task: 'patch the security vulnerability' returns BUG" {
+    result=$(classify_task "patch the security vulnerability")
+    [ "$result" = "BUG" ]
+}
+
+@test "classify_task: 'enhance logging output' returns FEATURE" {
+    result=$(classify_task "enhance logging output")
+    [ "$result" = "FEATURE" ]
+}
+
+@test "classify_task: 'extend API with new endpoint' returns FEATURE" {
+    result=$(classify_task "extend API with new endpoint")
+    [ "$result" = "FEATURE" ]
+}
+
+@test "classify_task: 'expand test coverage' returns FEATURE" {
+    result=$(classify_task "expand test coverage")
+    [ "$result" = "FEATURE" ]
+}
+
+@test "classify_task: whitespace-only input returns UNKNOWN" {
+    run classify_task "   "
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"UNKNOWN"* ]]
+}
+
+# ============================================================================
 # all_tasks_complete edge cases
 # ============================================================================
 

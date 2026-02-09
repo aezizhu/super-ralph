@@ -243,6 +243,17 @@ uninstall() {
     log "INFO" "Uninstalling Super-Ralph..."
     rm -f "$INSTALL_DIR/super-ralph" "$INSTALL_DIR/super-ralph-setup"
     rm -rf "$SUPER_RALPH_HOME"
+
+    # Verify removal succeeded
+    local remaining=()
+    [[ -f "$INSTALL_DIR/super-ralph" ]] && remaining+=("$INSTALL_DIR/super-ralph")
+    [[ -f "$INSTALL_DIR/super-ralph-setup" ]] && remaining+=("$INSTALL_DIR/super-ralph-setup")
+    [[ -d "$SUPER_RALPH_HOME" ]] && remaining+=("$SUPER_RALPH_HOME")
+
+    if [[ ${#remaining[@]} -gt 0 ]]; then
+        log "WARN" "Some files could not be removed: ${remaining[*]}"
+        return 1
+    fi
     log "SUCCESS" "Super-Ralph uninstalled"
 }
 
