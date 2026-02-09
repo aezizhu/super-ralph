@@ -110,6 +110,28 @@ fi
 
 debug "Transcript: $TRANSCRIPT_PATH"
 
+# Session isolation: ensure this loop belongs to the current session.
+# Each Claude Code session has a unique transcript path. We store it on first
+# hook invocation. If a different session encounters a stale state file, we
+# clean it up and allow exit instead of trapping an unrelated session.
+STORED_SESSION=$(echo "$FRONTMATTER" | grep '^session_transcript:' | sed 's/session_transcript: *//' | sed 's/^"\(.*\)"$/\1/' || true)
+
+if [[ -z "$STORED_SESSION" ]]; then
+  # First hook invocation for this loop — record session ownership
+  debug "Recording session ownership: $TRANSCRIPT_PATH"
+  sed -i.bak "s|^active: true|active: true\nsession_transcript: \"$TRANSCRIPT_PATH\"|" "$RALPH_STATE_FILE"
+  rm -f "${RALPH_STATE_FILE}.bak"
+elif [[ "$STORED_SESSION" != "$TRANSCRIPT_PATH" ]]; then
+  # Different session — stale state file from a previous session
+  echo "⚠️  Super-Ralph loop: Stale loop from a previous session detected." >&2
+  echo "   Cleaning up and allowing exit." >&2
+  debug "Session mismatch: stored=$STORED_SESSION current=$TRANSCRIPT_PATH"
+  rm "$RALPH_STATE_FILE"
+  exit 0
+fi
+
+debug "Session ownership verified"
+
 # Read last assistant message from transcript (JSONL format - one JSON per line)
 # First check if there are any assistant messages
 if ! grep -q '"role":"assistant"' "$TRANSCRIPT_PATH"; then
