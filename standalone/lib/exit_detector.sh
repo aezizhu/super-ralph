@@ -6,7 +6,13 @@
 # Requires these globals from caller:
 #   EXIT_SIGNALS_FILE, RESPONSE_ANALYSIS_FILE
 #   MAX_CONSECUTIVE_TEST_LOOPS, MAX_CONSECUTIVE_DONE_SIGNALS
-#   log_status(), all_tasks_complete(), validate_exit_signal()
+#   all_tasks_complete(), validate_exit_signal()
+
+# Source logging if not already available
+if ! declare -f log_status &>/dev/null; then
+    EXIT_DET_DIR="$(dirname "${BASH_SOURCE[0]}")"
+    source "$EXIT_DET_DIR/logging.sh"
+fi
 
 should_exit_gracefully() {
     if [[ ! -f "$EXIT_SIGNALS_FILE" ]]; then

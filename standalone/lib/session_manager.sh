@@ -5,7 +5,13 @@
 
 # Requires these globals from caller:
 #   CLAUDE_SESSION_FILE, RALPH_SESSION_FILE, CLAUDE_SESSION_EXPIRY_HOURS
-#   log_status(), get_iso_timestamp()
+#   get_iso_timestamp()
+
+# Source logging if not already available
+if ! declare -f log_status &>/dev/null; then
+    SESSION_MGR_DIR="$(dirname "${BASH_SOURCE[0]}")"
+    source "$SESSION_MGR_DIR/logging.sh"
+fi
 
 get_session_file_age_hours() {
     local file=$1

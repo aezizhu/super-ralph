@@ -8,7 +8,12 @@
 #   MAX_CALLS_PER_HOUR, PROMPT_FILE, CLAUDE_OUTPUT_FORMAT
 #   VERBOSE_PROGRESS, CLAUDE_TIMEOUT_MINUTES, CLAUDE_USE_CONTINUE
 #   CLAUDE_SESSION_EXPIRY_HOURS
-#   log_status()
+
+# Source logging if not already available
+if ! declare -f log_status &>/dev/null; then
+    TMUX_UTILS_DIR="$(dirname "${BASH_SOURCE[0]}")"
+    source "$TMUX_UTILS_DIR/logging.sh"
+fi
 
 check_tmux_available() {
     if ! command -v tmux &>/dev/null; then

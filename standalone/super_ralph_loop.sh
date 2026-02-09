@@ -131,40 +131,10 @@ VALID_TOOL_PATTERNS=(
     "Bash(python *)" "Bash(node *)" "NotebookEdit"
 )
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
 mkdir -p "$LOG_DIR" "$DOCS_DIR" "docs/plans"
 
-# =============================================================================
-# LOGGING
-# =============================================================================
-
-log_status() {
-    local level=$1
-    local message=$2
-    local timestamp
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    local color=""
-
-    case $level in
-        "INFO")    color=$BLUE ;;
-        "WARN")    color=$YELLOW ;;
-        "ERROR")   color=$RED ;;
-        "SUCCESS") color=$GREEN ;;
-        "LOOP")    color=$PURPLE ;;
-        "SKILL")   color=$CYAN ;;
-    esac
-
-    echo -e "${color}[$timestamp] [$level] $message${NC}" >&2
-    echo "[$timestamp] [$level] $message" >> "$LOG_DIR/super-ralph.log"
-}
+# Source shared logging library
+source "$SCRIPT_DIR/lib/logging.sh"
 
 # =============================================================================
 # RALPHRC CONFIGURATION

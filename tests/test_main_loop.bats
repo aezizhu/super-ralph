@@ -155,6 +155,54 @@ _define_validate() {
     [ "$status" -eq 0 ]
 }
 
+@test "validate_allowed_tools: accepts MultiEdit" {
+    _define_validate
+    run validate_allowed_tools "MultiEdit"
+    [ "$status" -eq 0 ]
+}
+
+@test "validate_allowed_tools: accepts Glob and Grep" {
+    _define_validate
+    run validate_allowed_tools "Glob,Grep"
+    [ "$status" -eq 0 ]
+}
+
+@test "validate_allowed_tools: accepts Task and TodoWrite" {
+    _define_validate
+    run validate_allowed_tools "Task,TodoWrite"
+    [ "$status" -eq 0 ]
+}
+
+@test "validate_allowed_tools: accepts WebFetch and WebSearch" {
+    _define_validate
+    run validate_allowed_tools "WebFetch,WebSearch"
+    [ "$status" -eq 0 ]
+}
+
+@test "validate_allowed_tools: accepts NotebookEdit" {
+    _define_validate
+    run validate_allowed_tools "NotebookEdit"
+    [ "$status" -eq 0 ]
+}
+
+@test "validate_allowed_tools: accepts Bash(bats *)" {
+    _define_validate
+    run validate_allowed_tools "Bash(bats *)"
+    [ "$status" -eq 0 ]
+}
+
+@test "validate_allowed_tools: accepts Bash(python *) and Bash(node *)" {
+    _define_validate
+    run validate_allowed_tools "Bash(python *),Bash(node *)"
+    [ "$status" -eq 0 ]
+}
+
+@test "validate_allowed_tools: accepts all tools combined" {
+    _define_validate
+    run validate_allowed_tools "Write,Read,Edit,MultiEdit,Glob,Grep,Task,TodoWrite,WebFetch,WebSearch,Bash,NotebookEdit"
+    [ "$status" -eq 0 ]
+}
+
 # ============================================================================
 # load_ralphrc tests
 # ============================================================================

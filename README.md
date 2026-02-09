@@ -127,7 +127,8 @@ The bash system replicates and extends Ralph's autonomous loop infrastructure:
 | **Session Manager** | `standalone/lib/session_manager.sh` | Manages Claude session persistence with expiry tracking. Handles cross-platform file age detection (GNU/BSD stat), session initialization, save/restore, and reset. Functions: `get_session_file_age_hours()`, `init_claude_session()`, `save_claude_session()`, `init_session_tracking()`, `update_session_last_used()`, `reset_session()`. |
 | **TMUX Utils** | `standalone/lib/tmux_utils.sh` | Sets up multi-pane tmux monitoring sessions with live output, status display, and the main loop running side-by-side. Functions: `check_tmux_available()`, `setup_tmux_session()`. |
 | **Exit Detector** | `standalone/lib/exit_detector.sh` | Determines when the loop should stop based on signal analysis: test saturation, completion signals, permission denials, safety circuit breaker, and verification gates. Also validates `.ralphrc` configuration values. Functions: `should_exit_gracefully()`, `validate_ralphrc()`. |
-| **Installer** | `standalone/install.sh` | Installs `super-ralph` and `super-ralph-setup` commands globally to `~/.local/bin`. Copies libraries to `~/.super-ralph/`. Includes embedded `super-ralph-setup` script for project scaffolding (creates `.ralph/` directory structure with PROMPT.md, specs/, fix_plan.md). Supports `./install.sh uninstall` for clean removal. |
+| **Logging** | `standalone/lib/logging.sh` | Shared colored logging with file output. Provides `log_status()` with 6 levels (INFO, WARN, ERROR, SUCCESS, LOOP, SKILL), color constants, and optional file logging via `$LOG_DIR`. Auto-sourced by all libraries that need logging. |
+| **Installer** | `standalone/install.sh` | Installs `super-ralph` and `super-ralph-setup` commands globally to `~/.local/bin`. Copies libraries to `~/.super-ralph/`. Includes embedded `super-ralph-setup` script for project scaffolding (creates `.ralph/` directory structure with PROMPT.md, specs/, fix_plan.md). Supports `./install.sh uninstall` for clean removal with verification. |
 | **Enhanced Prompt** | `standalone/super-ralph-prompt.md` | Drop-in replacement for Ralph's `.ralph/PROMPT.md`. Contains the full Super-Ralph methodology embedded as prompt context: task classification table, TDD workflow (RED-VERIFY-GREEN-VERIFY-REFACTOR-COMMIT), systematic debugging 4-phase process, verification enforcement, and skill selection logic. This is what Claude reads on every loop iteration. |
 
 ### Skills Library
@@ -398,7 +399,7 @@ Layer 1: INFRASTRUCTURE (Ralph Loop)
 
 ## Development & Testing
 
-Super-Ralph includes a comprehensive test suite with **219 bats tests** covering all gate libraries, the stop-hook controller, session management, exit detection, config validation, rate limiting, project setup, SKILL.md consistency, and shared utilities.
+Super-Ralph includes a comprehensive test suite with **235 bats tests** covering all gate libraries, the stop-hook controller, session management, exit detection, config validation, rate limiting, logging, project setup, SKILL.md consistency, and shared utilities.
 
 ```bash
 # Install bats (macOS)
@@ -432,12 +433,13 @@ Test files:
 | `tests/test_stop_hook.bats` | Loop controller behavior (25 tests) |
 | `tests/test_session_manager.bats` | Session persistence and expiry |
 | `tests/test_tmux_utils.bats` | TMUX monitoring utilities |
-| `tests/test_main_loop.bats` | Config validation, exit detection, and rate limiting |
+| `tests/test_main_loop.bats` | Config validation, exit detection, and rate limiting (47 tests) |
 | `tests/test_setup.bats` | Project scaffolding and SKILL.md consistency validation |
+| `tests/test_logging.bats` | Shared logging and color constants |
 
 Key engineering features:
 - **Configurable constants**: All timing values, thresholds, and limits are environment-variable configurable (`MAX_CALLS_PER_HOUR`, `RETRY_BACKOFF_SECONDS`, `RATE_LIMIT_RETRY_SECONDS`, `MAX_LOOP_CONTEXT_LENGTH`, etc.)
-- **7 extracted libraries**: Session management, TMUX utils, exit detection, skill selection, TDD gate, verification gate, and shared gate utilities -- each independently testable
+- **8 extracted libraries**: Logging, session management, TMUX utils, exit detection, skill selection, TDD gate, verification gate, and shared gate utilities -- each independently testable and self-contained
 - **SKILL.md consistency**: All 14 skills have standardized YAML frontmatter (`name`, `description` starting with "Use when"), and `## Related Skills` cross-references, validated by CI tests
 - **Project auto-detection**: Automatically configures allowed tools based on project files (package.json, Cargo.toml, pyproject.toml, go.mod, etc.)
 - **ShellCheck clean**: All bash scripts pass shellcheck static analysis

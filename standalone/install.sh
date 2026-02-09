@@ -105,6 +105,7 @@ install_super_ralph() {
     cp "$SCRIPT_DIR/lib/session_manager.sh" "$SUPER_RALPH_HOME/lib/"
     cp "$SCRIPT_DIR/lib/tmux_utils.sh" "$SUPER_RALPH_HOME/lib/"
     cp "$SCRIPT_DIR/lib/exit_detector.sh" "$SUPER_RALPH_HOME/lib/"
+    cp "$SCRIPT_DIR/lib/logging.sh" "$SUPER_RALPH_HOME/lib/"
     chmod +x "$SUPER_RALPH_HOME/lib/"*.sh
 
     # Copy templates

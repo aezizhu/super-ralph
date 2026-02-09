@@ -43,6 +43,7 @@ Located in `standalone/`:
 | `lib/session_manager.sh` | Claude session persistence and expiry |
 | `lib/tmux_utils.sh` | Multi-pane tmux monitoring sessions |
 | `lib/exit_detector.sh` | Graceful exit detection and config validation |
+| `lib/logging.sh` | Shared colored logging and file output |
 | `install.sh` | Global installation script |
 
 ### Layer 2: Claude Code Plugin

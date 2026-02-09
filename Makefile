@@ -1,4 +1,4 @@
-.PHONY: test lint install uninstall help version-check release
+.PHONY: test lint install uninstall help version-check release check clean test-file
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -25,6 +25,17 @@ version-check: ## Verify version consistency across config files
 	echo "\033[32mVersions consistent: $$V1\033[0m"
 
 check: lint test version-check ## Run lint, tests, and version check
+
+test-file: ## Run single test: make test-file FILE=test_skill_selector
+	@if [ -z "$(FILE)" ]; then \
+		echo "\033[31mUsage: make test-file FILE=test_name\033[0m"; \
+		exit 1; \
+	fi; \
+	bats tests/$(FILE).bats
+
+clean: ## Remove test artifacts and backup files
+	find . -name "*.bak" -delete
+	rm -f standalone/super_ralph_loop.sh.bak
 
 release: ## Bump version: make release VERSION=x.y.z
 	@if [ -z "$(VERSION)" ]; then \
