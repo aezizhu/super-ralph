@@ -37,7 +37,7 @@ setup_tmux_session() {
     # Right-top: live Claude output
     tmux send-keys -t "$session_name:${base_win}.1" "tail -f '$project_dir/$LIVE_LOG_FILE'" Enter
     # Right-bottom: status monitor
-    tmux send-keys -t "$session_name:${base_win}.2" "watch -n 5 'cat $project_dir/$STATUS_FILE 2>/dev/null | jq . 2>/dev/null || echo No status yet'" Enter
+    tmux send-keys -t "$session_name:${base_win}.2" "watch -n 5 'jq . $project_dir/$STATUS_FILE 2>/dev/null || echo No status yet'" Enter
 
     # Left: super-ralph loop (forward relevant args, always use --live in tmux)
     local sr_cmd="'$SCRIPT_DIR/super_ralph_loop.sh' --live"

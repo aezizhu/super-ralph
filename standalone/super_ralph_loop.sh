@@ -119,6 +119,9 @@ LIVE_OUTPUT=false
 MAX_CONSECUTIVE_TEST_LOOPS="${MAX_CONSECUTIVE_TEST_LOOPS:-3}"
 MAX_CONSECUTIVE_DONE_SIGNALS="${MAX_CONSECUTIVE_DONE_SIGNALS:-2}"
 MAX_LOOP_CONTEXT_LENGTH="${MAX_LOOP_CONTEXT_LENGTH:-800}"
+PROGRESS_CHECK_INTERVAL="${PROGRESS_CHECK_INTERVAL:-10}"
+POST_EXECUTION_PAUSE="${POST_EXECUTION_PAUSE:-5}"
+RETRY_BACKOFF_SECONDS="${RETRY_BACKOFF_SECONDS:-30}"
 
 VALID_TOOL_PATTERNS=(
     "Write" "Read" "Edit" "MultiEdit" "Glob" "Grep"
@@ -774,7 +777,7 @@ EOF
                     log_status "INFO" "Claude Code working... (${progress_counter}0s elapsed)"
                 fi
             fi
-            sleep 10
+            sleep "$PROGRESS_CHECK_INTERVAL"
         done
 
         wait $claude_pid
@@ -1015,7 +1018,7 @@ main() {
 
         if [[ $exec_result -eq 0 ]]; then
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "completed" "success"
-            sleep 5
+            sleep "$POST_EXECUTION_PAUSE"
         elif [[ $exec_result -eq 3 ]]; then
             reset_session "circuit_breaker_trip"
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "circuit_breaker_open" "halted" "stagnation_detected"
@@ -1051,8 +1054,8 @@ main() {
             fi
         else
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "failed" "error"
-            log_status "WARN" "Execution failed, waiting 30 seconds before retry..."
-            sleep 30
+            log_status "WARN" "Execution failed, waiting ${RETRY_BACKOFF_SECONDS} seconds before retry..."
+            sleep "$RETRY_BACKOFF_SECONDS"
         fi
 
         log_status "LOOP" "=== Completed Loop #$loop_count ==="

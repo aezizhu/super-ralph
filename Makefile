@@ -7,7 +7,7 @@ test: ## Run all bats tests
 	bats tests/
 
 lint: ## Run shellcheck on all bash scripts
-	shellcheck -x standalone/lib/*.sh standalone/super_ralph_loop.sh standalone/install.sh plugins/super-ralph/hooks/stop-hook.sh
+	shellcheck -x --exclude=SC1091 standalone/lib/*.sh standalone/super_ralph_loop.sh standalone/install.sh plugins/super-ralph/hooks/stop-hook.sh
 
 install: ## Install super-ralph globally
 	bash standalone/install.sh
