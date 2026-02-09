@@ -5,6 +5,9 @@
 
 set -euo pipefail
 
+# Disable glob expansion to prevent shell interpretation of ?, *, [] in user text
+set -f
+
 # Parse arguments
 PROMPT_PARTS=()
 MAX_ITERATIONS=0
@@ -110,7 +113,7 @@ HELP_EOF
 done
 
 # Join all prompt parts with spaces
-PROMPT="${PROMPT_PARTS[*]}"
+PROMPT="${PROMPT_PARTS[*]:-}"
 
 # Validate prompt is non-empty
 if [[ -z "$PROMPT" ]]; then
@@ -154,7 +157,7 @@ cat <<EOF
 🔄 Super-Ralph loop activated in this session!
 
 Iteration: 1
-Max iterations: $(if [[ $MAX_ITERATIONS -gt 0 ]]; then echo $MAX_ITERATIONS; else echo "unlimited"; fi)
+Max iterations: $(if [[ $MAX_ITERATIONS -gt 0 ]]; then echo "$MAX_ITERATIONS"; else echo "unlimited"; fi)
 Completion promise: $(if [[ "$COMPLETION_PROMISE" != "null" ]]; then echo "${COMPLETION_PROMISE//\"/} (ONLY output when TRUE - do not lie!)"; else echo "none (runs forever)"; fi)
 
 The stop hook is now active. When you try to exit, the SAME PROMPT will be

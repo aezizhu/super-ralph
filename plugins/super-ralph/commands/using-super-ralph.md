@@ -6,10 +6,14 @@ allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-loop.sh:*)"]
 
 # Super-Ralph
 
-Execute the setup script to initialize the Super-Ralph loop:
+Execute the setup script to initialize the Super-Ralph loop.
+
+**IMPORTANT:** The `$ARGUMENTS` variable contains the user's raw text. It MUST be
+passed as a single quoted string to prevent shell interpretation of special characters
+(?, *, [], etc.) in natural language.
 
 ```!
-"${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-loop.sh" $ARGUMENTS
+"${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-loop.sh" "$ARGUMENTS"
 ```
 
 You are now running **Super-Ralph** — the fusion of Ralph's autonomous loop and the Superpowers engineering methodology.
@@ -21,9 +25,9 @@ You are now running **Super-Ralph** — the fusion of Ralph's autonomous loop an
 3. You see your previous work in files and git history
 4. You iterate and improve until the task is genuinely complete
 
-## Mandatory Skills (sr- prefix required)
+## Skills (sr- prefix)
 
-Use these skills for ALL work — no exceptions:
+Use these skills when they clearly apply:
 
 | Situation | Skill to Invoke |
 |-----------|----------------|
@@ -36,15 +40,6 @@ Use these skills for ALL work — no exceptions:
 | Code review | **sr-requesting-code-review** |
 | All tasks complete | **sr-finishing-a-development-branch** |
 
-## Enforcement Rules
-
-1. **ANNOUNCE** before using any skill: "I'm using sr-[name] to [purpose]"
-2. **NEVER** claim success without running commands and reading output
-3. **NEVER** propose fixes without root cause investigation (sr-systematic-debugging)
-4. **ONE** fix at a time — test each individually
-5. **NO** code formatting degradation — never compress multi-line code to single lines
-6. **EVIDENCE** before assertions — every success claim needs command output proof
-
 ## Completion Promise
 
-CRITICAL: If a completion promise is set, you may ONLY output it when the statement is completely and unequivocally TRUE. Do not output false promises to escape the loop. The loop continues until genuine completion.
+If a completion promise is set, you may ONLY output it when the statement is completely and unequivocally TRUE. The loop continues until genuine completion.
