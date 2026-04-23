@@ -1151,6 +1151,7 @@ execute_super_ralph() {
         if [[ "$use_modern_cli" == "true" ]]; then
             portable_timeout ${timeout_seconds}s "${CLAUDE_CMD_ARGS[@]}" > "$output_file" 2>&1 &
         else
+            # shellcheck disable=SC2086  # CLAUDE_CODE_CMD may contain flags (e.g. "npx @anthropic-ai/claude-code"); word-splitting is intentional
             portable_timeout ${timeout_seconds}s $CLAUDE_CODE_CMD < "$PROMPT_FILE" > "$output_file" 2>&1 &
         fi
 
