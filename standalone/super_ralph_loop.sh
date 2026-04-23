@@ -636,6 +636,9 @@ execute_super_ralph() {
     local timestamp
     timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
     local output_file="$LOG_DIR/claude_output_${timestamp}.log"
+    # P15: capture claude CLI stderr in a sibling file so Node/undici warnings
+    # don't corrupt the stdout JSON stream that jq parses in live mode.
+    local stderr_file="$LOG_DIR/claude_stderr_${timestamp}.log"
 
     # Capture git HEAD SHA for progress detection
     local loop_start_sha=""
@@ -646,13 +649,13 @@ execute_super_ralph() {
 
     local timeout_seconds=$((CLAUDE_TIMEOUT_MINUTES * 60))
 
-    # Build loop context (Ralph base + superpowers methodology)
+    # P17: build loop context unconditionally (was gated on CLAUDE_USE_CONTINUE).
+    # Fresh sessions without continuity need loop count / previous summary /
+    # circuit-breaker state just as much, if not more, than continued ones.
     local loop_context=""
-    if [[ "$CLAUDE_USE_CONTINUE" == "true" ]]; then
-        loop_context=$(build_loop_context "$loop_count")
-        if [[ -n "$loop_context" && "$VERBOSE_PROGRESS" == "true" ]]; then
-            log_status "INFO" "Loop context: $loop_context"
-        fi
+    loop_context=$(build_loop_context "$loop_count")
+    if [[ -n "$loop_context" && "$VERBOSE_PROGRESS" == "true" ]]; then
+        log_status "INFO" "Loop context: $loop_context"
     fi
 
     # Initialize or resume session
@@ -674,9 +677,12 @@ execute_super_ralph() {
         log_status "INFO" "Using legacy CLI mode (text output)"
     fi
 
+    # P16: persist the API call counter immediately (not only on success) so
+    # the monitor dashboard reflects attempts, including failures and timeouts.
     local calls_made
     calls_made=$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")
     calls_made=$((calls_made + 1))
+    echo "$calls_made" > "$CALL_COUNT_FILE"
 
     log_status "LOOP" "Executing Claude Code (Call $calls_made/$MAX_CALLS_PER_HOUR, timeout: ${CLAUDE_TIMEOUT_MINUTES}m)"
 
@@ -736,17 +742,37 @@ execute_super_ralph() {
                 empty
             end'
 
-        set -o pipefail
+        # P2: disable errexit across the pipeline — portable_timeout returns
+        # 124 on a Claude hang, which under set -e+pipefail would silently kill
+        # the whole loop. We restore set -e immediately after and handle the
+        # exit code explicitly.
         # P12: removed stdbuf from all stages of the pipeline (see above).
+        # P15: route claude's stderr to a separate file instead of merging it
+        # into stdout via `2>&1`, so Node/undici warnings don't corrupt the
+        # JSON stream fed to jq.
+        set +e
+        set -o pipefail
         portable_timeout ${timeout_seconds}s "${LIVE_CMD_ARGS[@]}" \
-            2>&1 | tee "$output_file" | jq --unbuffered -j "$jq_filter" 2>/dev/null | tee "$LIVE_LOG_FILE"
+            2>"$stderr_file" | tee "$output_file" | jq --unbuffered -j "$jq_filter" 2>/dev/null | tee "$LIVE_LOG_FILE"
 
         local -a pipe_status=("${PIPESTATUS[@]}")
         set +o pipefail
+        set -e
         exit_code=${pipe_status[0]}
+
+        if [[ $exit_code -eq 124 ]]; then
+            log_status "WARN" "Claude Code timed out after ${CLAUDE_TIMEOUT_MINUTES}m in live mode (exit 124)"
+        fi
 
         [[ ${pipe_status[1]:-0} -ne 0 ]] && log_status "WARN" "Failed to write stream output to log file"
         [[ ${pipe_status[2]:-0} -ne 0 ]] && log_status "WARN" "jq filter had issues parsing some stream events"
+
+        # P15: surface captured stderr so users can still see CLI warnings.
+        if [[ -s "$stderr_file" ]]; then
+            log_status "WARN" "Claude CLI stderr output detected (see $stderr_file)"
+        else
+            rm -f "$stderr_file" 2>/dev/null || true
+        fi
 
         echo ""
         echo -e "${PURPLE}━━━━━━━━━━━━━━━━ End of Output ━━━━━━━━━━━━━━━━━━━${NC}"
@@ -812,8 +838,31 @@ EOF
     fi
 
     if [[ $exit_code -eq 0 ]]; then
-        # Only increment counter on success
-        echo "$calls_made" > "$CALL_COUNT_FILE"
+        # P16: counter already persisted before execution; no duplicate write here.
+
+        # P7: Claude CLI can exit 0 with `"is_error": true` on API 400 / token
+        # expiry / tool-use-concurrency errors. Don't treat that as success —
+        # reset the session, skip save, and fall through to failure reporting.
+        local is_error="false"
+        if [[ -f "$output_file" ]]; then
+            is_error=$(jq -r '.is_error // false' "$output_file" 2>/dev/null)
+            [[ "$is_error" == "null" ]] && is_error="false"
+        fi
+        if [[ "$is_error" == "true" ]]; then
+            printf '{"status": "failed", "timestamp": "%s"}' "$(date '+%Y-%m-%d %H:%M:%S')" > "$PROGRESS_FILE"
+            log_status "ERROR" "Claude Code returned is_error:true; resetting session"
+            local err_msg
+            err_msg=$(jq -r '.error // .result // ""' "$output_file" 2>/dev/null | head -c 200)
+            if [[ -n "$err_msg" && "$err_msg" != "null" ]]; then
+                log_status "ERROR" "Claude error: $err_msg"
+            fi
+            if echo "$err_msg" | grep -qi "tool.use.*concurrency\|concurrent tool"; then
+                reset_session "tool_use_concurrency_error"
+            else
+                reset_session "api_error_is_error_true"
+            fi
+            return 1
+        fi
 
         printf '{"status": "completed", "timestamp": "%s"}' "$(date '+%Y-%m-%d %H:%M:%S')" > "$PROGRESS_FILE"
         log_status "SUCCESS" "Claude Code execution completed"
@@ -969,6 +1018,12 @@ main() {
     init_session_tracking
     init_call_tracking
 
+    # P8: stale exit-signal state from a previous killed run can make a fresh
+    # run graceful-exit on loop 1 before doing any work. Reset the signals
+    # file and drop any leftover response-analysis snapshot.
+    echo '{"test_only_loops": [], "done_signals": [], "completion_indicators": []}' > "$EXIT_SIGNALS_FILE"
+    rm -f "$RESPONSE_ANALYSIS_FILE"
+
     while true; do
         loop_count=$((loop_count + 1))
         update_session_last_used
@@ -1050,6 +1105,9 @@ main() {
 
             if [[ "$user_choice" == "2" ]] || [[ -z "$user_choice" ]]; then
                 log_status "INFO" "User chose to exit (or timed out). Exiting loop..."
+                # P8: reset the session so the next manual run doesn't inherit
+                # this rate-limited one.
+                reset_session "api_limit_exit"
                 update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "api_limit_exit" "stopped" "api_5hour_limit"
                 break
             else
