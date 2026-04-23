@@ -8,7 +8,10 @@
 # If Ralph is installed, delegates infrastructure to Ralph and adds methodology.
 # If Ralph is not installed, runs its own loop with embedded Ralph features.
 
-set -e
+# A10: no `set -e`. Bash -e elides real errors (read -t timeouts, broken
+# pty writes, pipefail on 124) and was the root cause of P2/P3/P11 and
+# several other set-e-kills-the-loop bugs. Use explicit error handling
+# on statements that can fail and must abort.
 
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
@@ -27,9 +30,11 @@ fi
 # SOURCE DEPENDENCIES
 # =============================================================================
 
-source "$SCRIPT_DIR/lib/skill_selector.sh"
-source "$SCRIPT_DIR/lib/tdd_gate.sh"
-source "$SCRIPT_DIR/lib/verification_gate.sh"
+# A10: explicit source guards. Without set -e we must fail loudly on a
+# missing or syntactically broken lib/ file.
+source "$SCRIPT_DIR/lib/skill_selector.sh"    || { echo "FATAL: lib/skill_selector.sh failed to source" >&2; exit 1; }
+source "$SCRIPT_DIR/lib/tdd_gate.sh"          || { echo "FATAL: lib/tdd_gate.sh failed to source" >&2; exit 1; }
+source "$SCRIPT_DIR/lib/verification_gate.sh" || { echo "FATAL: lib/verification_gate.sh failed to source" >&2; exit 1; }
 
 if [[ "$RALPH_INSTALLED" == "true" ]]; then
     [[ -f "$RALPH_HOME/lib/date_utils.sh" ]] && source "$RALPH_HOME/lib/date_utils.sh"
@@ -169,13 +174,13 @@ VALID_TOOL_PATTERNS=(
 mkdir -p "$LOG_DIR" "$DOCS_DIR" "docs/plans"
 
 # Source shared logging library
-source "$SCRIPT_DIR/lib/logging.sh"
+source "$SCRIPT_DIR/lib/logging.sh"         || { echo "FATAL: lib/logging.sh failed to source" >&2; exit 1; }
 
 # A1: file integrity validation (upstream lib/file_protection.sh).
-source "$SCRIPT_DIR/lib/file_protection.sh"
+source "$SCRIPT_DIR/lib/file_protection.sh" || { echo "FATAL: lib/file_protection.sh failed to source" >&2; exit 1; }
 
 # A6: per-iteration log rotation (upstream lib/log_utils.sh, adapted).
-source "$SCRIPT_DIR/lib/log_utils.sh"
+source "$SCRIPT_DIR/lib/log_utils.sh"       || { echo "FATAL: lib/log_utils.sh failed to source" >&2; exit 1; }
 
 # =============================================================================
 # NOTIFICATIONS (A8)
@@ -834,7 +839,7 @@ count_changed_files() {
 # SESSION MANAGEMENT (extracted to lib/session_manager.sh)
 # =============================================================================
 
-source "$SCRIPT_DIR/lib/session_manager.sh"
+source "$SCRIPT_DIR/lib/session_manager.sh" || { echo "FATAL: lib/session_manager.sh failed to source" >&2; exit 1; }
 
 # =============================================================================
 # BUILD CLAUDE COMMAND
@@ -1092,22 +1097,19 @@ execute_super_ralph() {
                 empty
             end'
 
-        # P2: disable errexit across the pipeline — portable_timeout returns
-        # 124 on a Claude hang, which under set -e+pipefail would silently kill
-        # the whole loop. We restore set -e immediately after and handle the
-        # exit code explicitly.
+        # A10: set -e has been removed, so we no longer need the set +e / set -e
+        # toggle around the pipeline. pipefail is still enabled to surface
+        # non-zero exits from any stage via ${PIPESTATUS[*]}.
         # P12: removed stdbuf from all stages of the pipeline (see above).
         # P15: route claude's stderr to a separate file instead of merging it
         # into stdout via `2>&1`, so Node/undici warnings don't corrupt the
         # JSON stream fed to jq.
-        set +e
         set -o pipefail
         portable_timeout ${timeout_seconds}s "${LIVE_CMD_ARGS[@]}" \
             2>"$stderr_file" | tee "$output_file" | jq --unbuffered -j "$jq_filter" 2>/dev/null | tee "$LIVE_LOG_FILE"
 
         local -a pipe_status=("${PIPESTATUS[@]}")
         set +o pipefail
-        set -e
         exit_code=${pipe_status[0]}
 
         if [[ $exit_code -eq 124 ]]; then
@@ -1411,24 +1413,31 @@ EOF
 # GRACEFUL EXIT DETECTION & CONFIG VALIDATION (extracted to lib/exit_detector.sh)
 # =============================================================================
 
-source "$SCRIPT_DIR/lib/exit_detector.sh"
+source "$SCRIPT_DIR/lib/exit_detector.sh" || { echo "FATAL: lib/exit_detector.sh failed to source" >&2; exit 1; }
 
 # =============================================================================
 # TMUX MONITORING (extracted to lib/tmux_utils.sh)
 # =============================================================================
 
-source "$SCRIPT_DIR/lib/tmux_utils.sh"
+source "$SCRIPT_DIR/lib/tmux_utils.sh" || { echo "FATAL: lib/tmux_utils.sh failed to source" >&2; exit 1; }
 
 # =============================================================================
 # SIGNAL HANDLING
 # =============================================================================
 
 loop_count=0
+_cleanup_in_progress=false
 
 cleanup() {
+    # A10: re-entrancy guard. With set -e gone, a second SIGINT during cleanup
+    # could re-enter reset_session while the first call is still running.
+    if [[ "$_cleanup_in_progress" == "true" ]]; then
+        exit 130
+    fi
+    _cleanup_in_progress=true
     log_status "INFO" "Super-Ralph loop interrupted. Cleaning up..."
-    reset_session "manual_interrupt"
-    update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "interrupted" "stopped"
+    reset_session "manual_interrupt" 2>/dev/null || true
+    update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "interrupted" "stopped" 2>/dev/null || true
     exit 0
 }
 
