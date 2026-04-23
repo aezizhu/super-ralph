@@ -74,6 +74,16 @@ init_claude_session() {
 save_claude_session() {
     local output_file=$1
     if [[ -f "$output_file" ]]; then
+        # P7: never persist the session id if Claude reported is_error:true.
+        # The ID would correspond to a transient API error (400, token expiry,
+        # tool-use concurrency) and later runs would keep resuming into it.
+        local is_error
+        is_error=$(jq -r '.is_error // false' "$output_file" 2>/dev/null)
+        if [[ "$is_error" == "true" ]]; then
+            log_status "WARN" "Not saving session: Claude reported is_error:true"
+            return 0
+        fi
+
         local session_id
         session_id=$(jq -r '.metadata.session_id // .session_id // empty' "$output_file" 2>/dev/null)
         if [[ -n "$session_id" && "$session_id" != "null" ]]; then

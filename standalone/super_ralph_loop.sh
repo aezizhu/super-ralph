@@ -8,7 +8,10 @@
 # If Ralph is installed, delegates infrastructure to Ralph and adds methodology.
 # If Ralph is not installed, runs its own loop with embedded Ralph features.
 
-set -e
+# A10: no `set -e`. Bash -e elides real errors (read -t timeouts, broken
+# pty writes, pipefail on 124) and was the root cause of P2/P3/P11 and
+# several other set-e-kills-the-loop bugs. Use explicit error handling
+# on statements that can fail and must abort.
 
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
@@ -27,9 +30,11 @@ fi
 # SOURCE DEPENDENCIES
 # =============================================================================
 
-source "$SCRIPT_DIR/lib/skill_selector.sh"
-source "$SCRIPT_DIR/lib/tdd_gate.sh"
-source "$SCRIPT_DIR/lib/verification_gate.sh"
+# A10: explicit source guards. Without set -e we must fail loudly on a
+# missing or syntactically broken lib/ file.
+source "$SCRIPT_DIR/lib/skill_selector.sh"    || { echo "FATAL: lib/skill_selector.sh failed to source" >&2; exit 1; }
+source "$SCRIPT_DIR/lib/tdd_gate.sh"          || { echo "FATAL: lib/tdd_gate.sh failed to source" >&2; exit 1; }
+source "$SCRIPT_DIR/lib/verification_gate.sh" || { echo "FATAL: lib/verification_gate.sh failed to source" >&2; exit 1; }
 
 if [[ "$RALPH_INSTALLED" == "true" ]]; then
     [[ -f "$RALPH_HOME/lib/date_utils.sh" ]] && source "$RALPH_HOME/lib/date_utils.sh"
@@ -82,6 +87,8 @@ DOCS_DIR="$SUPER_RALPH_DIR/docs/generated"
 STATUS_FILE="$SUPER_RALPH_DIR/status.json"
 PROGRESS_FILE="$SUPER_RALPH_DIR/progress.json"
 CALL_COUNT_FILE="$SUPER_RALPH_DIR/.call_count"
+# A4: cumulative token counter for MAX_TOKENS_PER_HOUR enforcement.
+TOKEN_COUNT_FILE="$SUPER_RALPH_DIR/.token_count"
 TIMESTAMP_FILE="$SUPER_RALPH_DIR/.last_reset"
 EXIT_SIGNALS_FILE="$SUPER_RALPH_DIR/.exit_signals"
 RESPONSE_ANALYSIS_FILE="$SUPER_RALPH_DIR/.response_analysis"
@@ -104,6 +111,20 @@ _env_CLAUDE_SESSION_EXPIRY_HOURS="${CLAUDE_SESSION_EXPIRY_HOURS:-}"
 _env_VERBOSE_PROGRESS="${VERBOSE_PROGRESS:-}"
 _env_MAX_CONSECUTIVE_TEST_LOOPS="${MAX_CONSECUTIVE_TEST_LOOPS:-}"
 _env_MAX_CONSECUTIVE_DONE_SIGNALS="${MAX_CONSECUTIVE_DONE_SIGNALS:-}"
+# A2/A3: snapshot CLAUDE_CODE_CMD before the default is applied so .ralphrc
+# values aren't silently overwritten (upstream b31640a).
+_env_CLAUDE_CODE_CMD="${CLAUDE_CODE_CMD:-}"
+# A3: model / effort overrides (upstream b31640a).
+_env_CLAUDE_MODEL="${CLAUDE_MODEL:-}"
+_env_CLAUDE_EFFORT="${CLAUDE_EFFORT:-}"
+# A8: notification opt-in (upstream a1f6d5f).
+_env_ENABLE_NOTIFICATIONS="${ENABLE_NOTIFICATIONS:-}"
+# A4: token-budget alternative rate limit + shell-init file (upstream 8c7a7d9).
+_env_MAX_TOKENS_PER_HOUR="${MAX_TOKENS_PER_HOUR:-}"
+_env_RALPH_SHELL_INIT_FILE="${RALPH_SHELL_INIT_FILE:-}"
+_env_SUPER_RALPH_SHELL_INIT_FILE="${SUPER_RALPH_SHELL_INIT_FILE:-}"
+# A9: backup/rollback opt-in (upstream da2f157, e13a3cb).
+_env_ENABLE_BACKUP="${ENABLE_BACKUP:-}"
 
 MAX_CALLS_PER_HOUR="${MAX_CALLS_PER_HOUR:-100}"
 CLAUDE_TIMEOUT_MINUTES="${CLAUDE_TIMEOUT_MINUTES:-15}"
@@ -111,7 +132,26 @@ CLAUDE_OUTPUT_FORMAT="${CLAUDE_OUTPUT_FORMAT:-json}"
 CLAUDE_ALLOWED_TOOLS="${CLAUDE_ALLOWED_TOOLS:-__AUTO_DETECT__}"
 CLAUDE_USE_CONTINUE="${CLAUDE_USE_CONTINUE:-true}"
 CLAUDE_SESSION_EXPIRY_HOURS="${CLAUDE_SESSION_EXPIRY_HOURS:-24}"
-CLAUDE_CODE_CMD="claude"
+# A3: respect CLAUDE_CODE_CMD from .ralphrc / env; previous hardcoded
+# "claude" overwrote load_ralphrc's value.
+CLAUDE_CODE_CMD="${CLAUDE_CODE_CMD:-claude}"
+CLAUDE_MODEL="${CLAUDE_MODEL:-}"
+CLAUDE_EFFORT="${CLAUDE_EFFORT:-}"
+# A5: --dry-run simulates the loop without hitting the Claude API.
+DRY_RUN="${DRY_RUN:-false}"
+# A8: desktop notifications; off by default. Enable via --notify or
+# ENABLE_NOTIFICATIONS=true.
+ENABLE_NOTIFICATIONS="${ENABLE_NOTIFICATIONS:-false}"
+# A4: cumulative token budget per hour. 0 = disabled (call-count only).
+MAX_TOKENS_PER_HOUR="${MAX_TOKENS_PER_HOUR:-0}"
+# A4: shell init file sourced before invoking claude. Lets zsh-only users
+# pull PATH / env vars from ~/.zshrc. SUPER_RALPH_SHELL_INIT_FILE takes
+# precedence over RALPH_SHELL_INIT_FILE (alias retained for familiarity).
+SUPER_RALPH_SHELL_INIT_FILE="${SUPER_RALPH_SHELL_INIT_FILE:-}"
+RALPH_SHELL_INIT_FILE="${RALPH_SHELL_INIT_FILE:-}"
+# A9: backup/rollback opt-in. Defaults false to avoid creating branches in
+# shared repos. Enable via --backup or ENABLE_BACKUP=true.
+ENABLE_BACKUP="${ENABLE_BACKUP:-false}"
 VERBOSE_PROGRESS="${VERBOSE_PROGRESS:-false}"
 USE_TMUX=false
 LIVE_OUTPUT=false
@@ -134,7 +174,39 @@ VALID_TOOL_PATTERNS=(
 mkdir -p "$LOG_DIR" "$DOCS_DIR" "docs/plans"
 
 # Source shared logging library
-source "$SCRIPT_DIR/lib/logging.sh"
+source "$SCRIPT_DIR/lib/logging.sh"         || { echo "FATAL: lib/logging.sh failed to source" >&2; exit 1; }
+
+# A1: file integrity validation (upstream lib/file_protection.sh).
+source "$SCRIPT_DIR/lib/file_protection.sh" || { echo "FATAL: lib/file_protection.sh failed to source" >&2; exit 1; }
+
+# A6: per-iteration log rotation (upstream lib/log_utils.sh, adapted).
+source "$SCRIPT_DIR/lib/log_utils.sh"       || { echo "FATAL: lib/log_utils.sh failed to source" >&2; exit 1; }
+
+# =============================================================================
+# NOTIFICATIONS (A8)
+# =============================================================================
+# Cross-platform desktop notification helper. macOS (osascript), Linux
+# (notify-send), fallback to terminal bell. No-op when ENABLE_NOTIFICATIONS
+# is not "true". Any failure is swallowed so notification problems never
+# kill the loop.
+send_notification() {
+    local title="$1"
+    local message="$2"
+
+    [[ "${ENABLE_NOTIFICATIONS:-false}" == "true" ]] || return 0
+
+    # Strip double quotes so we can't break an AppleScript string literal.
+    local safe_title="${title//\"/}"
+    local safe_message="${message//\"/}"
+
+    if command -v osascript &>/dev/null; then
+        osascript -e "display notification \"$safe_message\" with title \"$safe_title\"" 2>/dev/null || true
+    elif command -v notify-send &>/dev/null; then
+        notify-send "$title" "$message" 2>/dev/null || true
+    else
+        printf '\a\n' 2>/dev/null || true
+    fi
+}
 
 # =============================================================================
 # RALPHRC CONFIGURATION
@@ -156,6 +228,12 @@ load_ralphrc() {
     [[ -n "${SESSION_EXPIRY_HOURS:-}" ]] && CLAUDE_SESSION_EXPIRY_HOURS="$SESSION_EXPIRY_HOURS"
     [[ -n "${RALPH_VERBOSE:-}" ]] && VERBOSE_PROGRESS="$RALPH_VERBOSE"
 
+    # A3: respect .ralphrc overrides for new vars too (and then re-apply env
+    # snapshots so env > ralphrc > defaults precedence holds).
+    [[ -n "${CLAUDE_CODE_CMD:-}" ]] && : # already set via env-or-default above
+    [[ -n "${CLAUDE_MODEL:-}" ]] && :
+    [[ -n "${CLAUDE_EFFORT:-}" ]] && :
+
     # Restore values explicitly set via environment variables (env > ralphrc > defaults)
     [[ -n "$_env_MAX_CALLS_PER_HOUR" ]] && MAX_CALLS_PER_HOUR="$_env_MAX_CALLS_PER_HOUR"
     [[ -n "$_env_CLAUDE_TIMEOUT_MINUTES" ]] && CLAUDE_TIMEOUT_MINUTES="$_env_CLAUDE_TIMEOUT_MINUTES"
@@ -166,6 +244,17 @@ load_ralphrc() {
     [[ -n "$_env_VERBOSE_PROGRESS" ]] && VERBOSE_PROGRESS="$_env_VERBOSE_PROGRESS"
     [[ -n "$_env_MAX_CONSECUTIVE_TEST_LOOPS" ]] && MAX_CONSECUTIVE_TEST_LOOPS="$_env_MAX_CONSECUTIVE_TEST_LOOPS"
     [[ -n "$_env_MAX_CONSECUTIVE_DONE_SIGNALS" ]] && MAX_CONSECUTIVE_DONE_SIGNALS="$_env_MAX_CONSECUTIVE_DONE_SIGNALS"
+    [[ -n "$_env_CLAUDE_CODE_CMD" ]] && CLAUDE_CODE_CMD="$_env_CLAUDE_CODE_CMD"
+    [[ -n "$_env_CLAUDE_MODEL" ]] && CLAUDE_MODEL="$_env_CLAUDE_MODEL"
+    [[ -n "$_env_CLAUDE_EFFORT" ]] && CLAUDE_EFFORT="$_env_CLAUDE_EFFORT"
+    [[ -n "$_env_ENABLE_NOTIFICATIONS" ]] && ENABLE_NOTIFICATIONS="$_env_ENABLE_NOTIFICATIONS"
+    [[ -n "$_env_MAX_TOKENS_PER_HOUR" ]] && MAX_TOKENS_PER_HOUR="$_env_MAX_TOKENS_PER_HOUR"
+    [[ -n "$_env_RALPH_SHELL_INIT_FILE" ]] && RALPH_SHELL_INIT_FILE="$_env_RALPH_SHELL_INIT_FILE"
+    [[ -n "$_env_SUPER_RALPH_SHELL_INIT_FILE" ]] && SUPER_RALPH_SHELL_INIT_FILE="$_env_SUPER_RALPH_SHELL_INIT_FILE"
+    [[ -n "$_env_ENABLE_BACKUP" ]] && ENABLE_BACKUP="$_env_ENABLE_BACKUP"
+
+    # A9: CLI --backup / -b must outrank .ralphrc ENABLE_BACKUP=false.
+    [[ "${_cli_ENABLE_BACKUP:-false}" == "true" ]] && ENABLE_BACKUP=true
 
     RALPHRC_LOADED=true
     return 0
@@ -384,6 +473,8 @@ init_call_tracking() {
 
     if [[ "$current_hour" != "$last_reset_hour" ]]; then
         echo "0" > "$CALL_COUNT_FILE"
+        # A4: reset the token counter alongside the call counter at hour roll.
+        echo "0" > "$TOKEN_COUNT_FILE"
         echo "$current_hour" > "$TIMESTAMP_FILE"
     fi
 
@@ -401,7 +492,55 @@ can_make_call() {
     if [[ -f "$CALL_COUNT_FILE" ]]; then
         calls_made=$(cat "$CALL_COUNT_FILE")
     fi
-    [[ $calls_made -lt $MAX_CALLS_PER_HOUR ]]
+    if [[ $calls_made -ge $MAX_CALLS_PER_HOUR ]]; then
+        return 1
+    fi
+
+    # A4: optional token-budget enforcement (MAX_TOKENS_PER_HOUR > 0).
+    if [[ "${MAX_TOKENS_PER_HOUR:-0}" -gt 0 ]] 2>/dev/null; then
+        local tokens_used=0
+        tokens_used=$(cat "$TOKEN_COUNT_FILE" 2>/dev/null || echo "0")
+        if [[ $tokens_used -ge $MAX_TOKENS_PER_HOUR ]]; then
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# A4: extract total token usage from a Claude output file. Supports both
+# stream-json result frames (.usage.*) and CLI metadata (.metadata.usage.*).
+extract_token_usage() {
+    local output_file=$1
+    if [[ ! -f "$output_file" ]]; then
+        echo "0"
+        return
+    fi
+    local tokens
+    tokens=$(jq -r '
+        ((.usage.input_tokens // .metadata.usage.input_tokens // 0) |
+         if type == "number" then . else 0 end) +
+        ((.usage.output_tokens // .metadata.usage.output_tokens // 0) |
+         if type == "number" then . else 0 end)
+    ' "$output_file" 2>/dev/null)
+    echo "${tokens:-0}"
+}
+
+# A4: accumulate token usage after each Claude invocation.
+update_token_count() {
+    local output_file=$1
+    local new_tokens
+    new_tokens=$(extract_token_usage "$output_file")
+    if [[ "$new_tokens" -gt 0 ]] 2>/dev/null; then
+        local current=0
+        current=$(cat "$TOKEN_COUNT_FILE" 2>/dev/null || echo "0")
+        local total=$((current + new_tokens))
+        echo "$total" > "$TOKEN_COUNT_FILE"
+        if [[ "${MAX_TOKENS_PER_HOUR:-0}" -gt 0 ]] 2>/dev/null; then
+            log_status "INFO" "Tokens this hour: $total/$MAX_TOKENS_PER_HOUR (+${new_tokens})"
+        else
+            log_status "INFO" "Tokens this hour: $total (+${new_tokens})"
+        fi
+    fi
 }
 
 increment_call_counter() {
@@ -436,7 +575,14 @@ increment_call_counter() {
 wait_for_reset() {
     local calls_made
     calls_made=$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")
-    log_status "WARN" "Rate limit reached ($calls_made/$MAX_CALLS_PER_HOUR). Waiting for reset..."
+    local tokens_used
+    tokens_used=$(cat "$TOKEN_COUNT_FILE" 2>/dev/null || echo "0")
+    local limit_reason="calls: $calls_made/$MAX_CALLS_PER_HOUR"
+    if [[ "${MAX_TOKENS_PER_HOUR:-0}" -gt 0 ]] 2>/dev/null; then
+        limit_reason="$limit_reason, tokens: $tokens_used/$MAX_TOKENS_PER_HOUR"
+    fi
+    log_status "WARN" "Rate limit reached ($limit_reason). Waiting for reset..."
+    send_notification "Super-Ralph - Rate Limit" "Rate limit reached ($limit_reason). Waiting for reset..."
 
     local current_minute
     current_minute=$(date +%M)
@@ -455,6 +601,7 @@ wait_for_reset() {
     printf "\n"
 
     echo "0" > "$CALL_COUNT_FILE"
+    echo "0" > "$TOKEN_COUNT_FILE"
     date +%Y%m%d%H > "$TIMESTAMP_FILE"
     log_status "SUCCESS" "Rate limit reset. Ready for new calls."
 }
@@ -466,12 +613,18 @@ update_status() {
     local status=$4
     local exit_reason=${5:-""}
 
+    # A4: include token counters in the status snapshot.
+    local tokens_used
+    tokens_used=$(cat "$TOKEN_COUNT_FILE" 2>/dev/null || echo "0")
+
     cat > "$STATUS_FILE" << STATUSEOF
 {
     "timestamp": "$(get_iso_timestamp)",
     "loop_count": $loop_count,
     "calls_made_this_hour": $calls_made,
     "max_calls_per_hour": $MAX_CALLS_PER_HOUR,
+    "tokens_used_this_hour": $tokens_used,
+    "max_tokens_per_hour": $MAX_TOKENS_PER_HOUR,
     "last_action": "$last_action",
     "status": "$status",
     "exit_reason": "$exit_reason",
@@ -479,6 +632,190 @@ update_status() {
     "mode": "super-ralph"
 }
 STATUSEOF
+}
+
+# =============================================================================
+# METRICS (A7)
+# =============================================================================
+
+# Append a JSON Lines metrics record to logs/metrics.jsonl.
+# Arguments: loop_num duration_seconds success(true|false) calls_this_loop
+track_metrics() {
+    local loop_num=$1
+    local duration=$2
+    local success=$3
+    local calls=$4
+
+    local metrics_file="$LOG_DIR/metrics.jsonl"
+    mkdir -p "$LOG_DIR"
+
+    local ts
+    ts=$(get_iso_timestamp)
+
+    printf '{"timestamp":"%s","loop":%d,"duration":%d,"success":%s,"calls":%d}\n' \
+        "$ts" "$loop_num" "$duration" "$success" "$calls" >> "$metrics_file"
+}
+
+# Log a one-line metrics summary on graceful exit.
+print_metrics_summary() {
+    local metrics_file="$LOG_DIR/metrics.jsonl"
+    [[ -f "$metrics_file" ]] || return 0
+    command -v jq &>/dev/null || return 0
+
+    local summary
+    summary=$(jq -s '{
+        total_loops: length,
+        successful: (map(select(.success==true)) | length),
+        avg_duration: (if length > 0 then (map(.duration) | add) / length else 0 end),
+        total_calls: (map(.calls) | add // 0)
+    }' "$metrics_file" 2>/dev/null)
+    [[ -n "$summary" ]] && log_status "INFO" "Metrics summary: $summary"
+}
+
+# =============================================================================
+# CLAUDE CLI VALIDATION (A2)
+# =============================================================================
+
+# Verify that CLAUDE_CODE_CMD resolves to an executable before the loop
+# tries to run. Returns 0 on success, 1 when the command is missing —
+# callers should exit with a helpful message in the failure case.
+validate_claude_command() {
+    local cmd="$CLAUDE_CODE_CMD"
+
+    if [[ "$cmd" == npx\ * ]] || [[ "$cmd" == "npx" ]]; then
+        if ! command -v npx &>/dev/null; then
+            echo ""
+            echo -e "${RED}NPX NOT FOUND${NC}"
+            echo ""
+            echo -e "${YELLOW}CLAUDE_CODE_CMD is set to use npx, but npx is not installed.${NC}"
+            echo "  1. Install Node.js (ships with npx): https://nodejs.org"
+            echo "  2. Or install Claude Code globally:"
+            echo "       npm install -g @anthropic-ai/claude-code"
+            echo "       And set in .ralphrc: CLAUDE_CODE_CMD=\"claude\""
+            echo ""
+            return 1
+        fi
+        return 0
+    fi
+
+    # Non-npx command; check the first whitespace-separated token so callers
+    # can set CLAUDE_CODE_CMD to something like "/opt/claude/claude --foo".
+    local cmd_bin="${cmd%% *}"
+    if ! command -v "$cmd_bin" &>/dev/null; then
+        echo ""
+        echo -e "${RED}CLAUDE CODE CLI NOT FOUND${NC}"
+        echo ""
+        echo -e "${YELLOW}The Claude Code CLI command '${cmd}' is not available.${NC}"
+        echo "  1. Install globally (recommended):"
+        echo "       npm install -g @anthropic-ai/claude-code"
+        echo "  2. Or use npx: set CLAUDE_CODE_CMD=\"npx @anthropic-ai/claude-code\" in .ralphrc"
+        echo ""
+        return 1
+    fi
+    return 0
+}
+
+# =============================================================================
+# BACKUP / ROLLBACK (A9)
+# =============================================================================
+
+# Create a git backup branch before a loop iteration. No-op when
+# ENABLE_BACKUP != "true" or when the working dir isn't a git repo. Uses
+# the "super-ralph-backup-loop-*" prefix to avoid colliding with Ralph's
+# own "ralph-backup-loop-*" branches on machines running both.
+create_backup() {
+    local loop_count="${1:-0}"
+
+    [[ "$ENABLE_BACKUP" == "true" ]] || return 0
+
+    if ! command -v git &>/dev/null || ! git rev-parse --git-dir &>/dev/null 2>&1; then
+        log_status "WARN" "Backup skipped: not a git repository"
+        return 0
+    fi
+
+    local ts
+    ts=$(date +%s)
+    local branch_name="super-ralph-backup-loop-${loop_count}-${ts}"
+    local msg="Super-Ralph backup before loop #${loop_count}"
+
+    # Stash any local changes so checkout doesn't eat them.
+    local stashed=false
+    if ! git stash push -u -m "$msg" 2>/dev/null; then
+        log_status "WARN" "Backup failed: could not stash local changes for loop #${loop_count}"
+        return 0
+    fi
+    stashed=true
+
+    if ! git checkout -b "$branch_name" -q 2>/dev/null; then
+        log_status "WARN" "Backup failed: could not create branch $branch_name"
+        git stash pop 2>/dev/null || true
+        return 0
+    fi
+
+    if ! git add -A 2>/dev/null; then
+        log_status "WARN" "Backup failed: could not stage files for loop #${loop_count}"
+        git checkout - -q 2>/dev/null || true
+        git stash pop 2>/dev/null || true
+        return 0
+    fi
+
+    if ! git commit --allow-empty -q -m "$msg" 2>/dev/null; then
+        log_status "WARN" "Backup failed: commit failed for loop #${loop_count}"
+        git checkout - -q 2>/dev/null || true
+        git stash pop 2>/dev/null || true
+        return 0
+    fi
+
+    if ! git checkout - -q 2>/dev/null; then
+        log_status "WARN" "Backup: could not switch back from $branch_name — manual cleanup may be needed"
+    fi
+
+    if [[ "$stashed" == "true" ]]; then
+        git stash pop 2>/dev/null || log_status "WARN" "Backup: stash pop failed — run 'git stash pop' to restore your changes"
+    fi
+
+    log_status "INFO" "Backup created: $branch_name"
+    return 0
+}
+
+# Roll back to a previously created backup branch. With no argument the
+# function lists available backups newest-first. With a branch name it
+# checks that branch out directly.
+rollback_to_backup() {
+    local branch="${1:-}"
+
+    if ! command -v git &>/dev/null || ! git rev-parse --git-dir &>/dev/null 2>&1; then
+        log_status "ERROR" "Rollback failed: not a git repository"
+        return 1
+    fi
+
+    if [[ -z "$branch" ]]; then
+        local backups
+        # Sort by the unix-timestamp field (5th '-'-delimited token).
+        backups=$(git branch --list "super-ralph-backup-loop-*" 2>/dev/null \
+            | sed 's/^[* ]*//' \
+            | sort -t- -k6,6 -rn)
+        if [[ -z "$backups" ]]; then
+            log_status "WARN" "No Super-Ralph backup branches found"
+            return 1
+        fi
+        echo "Available backups (newest first):"
+        echo "$backups"
+        return 0
+    fi
+
+    if ! git rev-parse --verify "$branch" &>/dev/null 2>&1; then
+        log_status "ERROR" "Rollback failed: branch '$branch' not found"
+        return 1
+    fi
+
+    if ! git checkout "$branch" -q 2>/dev/null; then
+        log_status "ERROR" "Rollback failed: could not checkout $branch"
+        return 1
+    fi
+
+    log_status "INFO" "Rolled back to: $branch"
+    return 0
 }
 
 # =============================================================================
@@ -502,7 +839,7 @@ count_changed_files() {
 # SESSION MANAGEMENT (extracted to lib/session_manager.sh)
 # =============================================================================
 
-source "$SCRIPT_DIR/lib/session_manager.sh"
+source "$SCRIPT_DIR/lib/session_manager.sh" || { echo "FATAL: lib/session_manager.sh failed to source" >&2; exit 1; }
 
 # =============================================================================
 # BUILD CLAUDE COMMAND
@@ -518,6 +855,14 @@ build_claude_command() {
     if [[ ! -f "$prompt_file" ]]; then
         log_status "ERROR" "Prompt file not found: $prompt_file"
         return 1
+    fi
+
+    # A3: model / effort overrides (upstream b31640a). Empty string = CLI default.
+    if [[ -n "${CLAUDE_MODEL:-}" ]]; then
+        CLAUDE_CMD_ARGS+=("--model" "$CLAUDE_MODEL")
+    fi
+    if [[ -n "${CLAUDE_EFFORT:-}" ]]; then
+        CLAUDE_CMD_ARGS+=("--effort" "$CLAUDE_EFFORT")
     fi
 
     if [[ "$CLAUDE_OUTPUT_FORMAT" == "json" ]]; then
@@ -636,6 +981,19 @@ execute_super_ralph() {
     local timestamp
     timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
     local output_file="$LOG_DIR/claude_output_${timestamp}.log"
+    # P15: capture claude CLI stderr in a sibling file so Node/undici warnings
+    # don't corrupt the stdout JSON stream that jq parses in live mode.
+    local stderr_file="$LOG_DIR/claude_stderr_${timestamp}.log"
+
+    # A5: dry-run short-circuits before any API work or counter bump.
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log_status "INFO" "[DRY RUN] Skipping Claude Code execution for loop $loop_count"
+        log_status "INFO" "[DRY RUN] Would execute $CLAUDE_CODE_CMD with prompt: $PROMPT_FILE"
+        log_status "INFO" "[DRY RUN] Output format: $CLAUDE_OUTPUT_FORMAT, timeout: ${CLAUDE_TIMEOUT_MINUTES}m"
+        sleep 2
+        log_status "INFO" "[DRY RUN] Simulation complete — no API call made"
+        return 0
+    fi
 
     # Capture git HEAD SHA for progress detection
     local loop_start_sha=""
@@ -646,13 +1004,13 @@ execute_super_ralph() {
 
     local timeout_seconds=$((CLAUDE_TIMEOUT_MINUTES * 60))
 
-    # Build loop context (Ralph base + superpowers methodology)
+    # P17: build loop context unconditionally (was gated on CLAUDE_USE_CONTINUE).
+    # Fresh sessions without continuity need loop count / previous summary /
+    # circuit-breaker state just as much, if not more, than continued ones.
     local loop_context=""
-    if [[ "$CLAUDE_USE_CONTINUE" == "true" ]]; then
-        loop_context=$(build_loop_context "$loop_count")
-        if [[ -n "$loop_context" && "$VERBOSE_PROGRESS" == "true" ]]; then
-            log_status "INFO" "Loop context: $loop_context"
-        fi
+    loop_context=$(build_loop_context "$loop_count")
+    if [[ -n "$loop_context" && "$VERBOSE_PROGRESS" == "true" ]]; then
+        log_status "INFO" "Loop context: $loop_context"
     fi
 
     # Initialize or resume session
@@ -674,9 +1032,12 @@ execute_super_ralph() {
         log_status "INFO" "Using legacy CLI mode (text output)"
     fi
 
+    # P16: persist the API call counter immediately (not only on success) so
+    # the monitor dashboard reflects attempts, including failures and timeouts.
     local calls_made
     calls_made=$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")
     calls_made=$((calls_made + 1))
+    echo "$calls_made" > "$CALL_COUNT_FILE"
 
     log_status "LOOP" "Executing Claude Code (Call $calls_made/$MAX_CALLS_PER_HOUR, timeout: ${CLAUDE_TIMEOUT_MINUTES}m)"
 
@@ -686,12 +1047,13 @@ execute_super_ralph() {
     local exit_code=0
 
     if [[ "$LIVE_OUTPUT" == "true" ]]; then
-        # Live streaming mode (requires jq + stdbuf)
+        # Live streaming mode (requires jq)
+        # P12: stdbuf removed — Homebrew coreutils stdbuf uses DYLD_INSERT_LIBRARIES
+        # and is rejected by /usr/bin/tee on arm64e Apple Silicon, crashing --live.
+        # claude flushes per-event, tee is write-through, and jq --unbuffered
+        # self-flushes, so stdbuf adds nothing.
         if ! command -v jq &>/dev/null; then
             log_status "ERROR" "Live mode requires 'jq'. Falling back to background mode."
-            LIVE_OUTPUT=false
-        elif ! command -v stdbuf &>/dev/null; then
-            log_status "ERROR" "Live mode requires 'stdbuf'. Falling back to background mode."
             LIVE_OUTPUT=false
         fi
     fi
@@ -727,26 +1089,51 @@ execute_super_ralph() {
                 else
                     empty
                 end
+            elif .type == "system" and .subtype == "task_started" then
+                "\n[agent: " + (.agent // "subagent") + " started" + (if .description then " — " + .description else "" end) + "]\n"
+            elif .type == "system" and .subtype == "task_progress" then
+                "\n[agent: " + (.agent // "subagent") + " progress" + (if .description then " — " + .description else "" end) + "]\n"
             else
                 empty
             end'
 
+        # A10: set -e has been removed, so we no longer need the set +e / set -e
+        # toggle around the pipeline. pipefail is still enabled to surface
+        # non-zero exits from any stage via ${PIPESTATUS[*]}.
+        # P12: removed stdbuf from all stages of the pipeline (see above).
+        # P15: route claude's stderr to a separate file instead of merging it
+        # into stdout via `2>&1`, so Node/undici warnings don't corrupt the
+        # JSON stream fed to jq.
         set -o pipefail
-        portable_timeout ${timeout_seconds}s stdbuf -oL "${LIVE_CMD_ARGS[@]}" \
-            2>&1 | stdbuf -oL tee "$output_file" | stdbuf -oL jq --unbuffered -j "$jq_filter" 2>/dev/null | tee "$LIVE_LOG_FILE"
+        portable_timeout ${timeout_seconds}s "${LIVE_CMD_ARGS[@]}" \
+            2>"$stderr_file" | tee "$output_file" | jq --unbuffered -j "$jq_filter" 2>/dev/null | tee "$LIVE_LOG_FILE"
 
         local -a pipe_status=("${PIPESTATUS[@]}")
         set +o pipefail
         exit_code=${pipe_status[0]}
 
+        if [[ $exit_code -eq 124 ]]; then
+            log_status "WARN" "Claude Code timed out after ${CLAUDE_TIMEOUT_MINUTES}m in live mode (exit 124)"
+        fi
+
         [[ ${pipe_status[1]:-0} -ne 0 ]] && log_status "WARN" "Failed to write stream output to log file"
         [[ ${pipe_status[2]:-0} -ne 0 ]] && log_status "WARN" "jq filter had issues parsing some stream events"
+
+        # P15: surface captured stderr so users can still see CLI warnings.
+        if [[ -s "$stderr_file" ]]; then
+            log_status "WARN" "Claude CLI stderr output detected (see $stderr_file)"
+        else
+            rm -f "$stderr_file" 2>/dev/null || true
+        fi
 
         echo ""
         echo -e "${PURPLE}━━━━━━━━━━━━━━━━ End of Output ━━━━━━━━━━━━━━━━━━━${NC}"
 
-        # Extract session from stream-json output
-        if [[ "$CLAUDE_USE_CONTINUE" == "true" && -f "$output_file" ]]; then
+        # P14: always normalize the stream-json log to a single result JSON
+        # object. Previously gated on CLAUDE_USE_CONTINUE=true, so continuity-off
+        # runs left the raw stream frames in $output_file and downstream jq
+        # consumers crashed under set -e.
+        if [[ -f "$output_file" ]]; then
             local stream_output_file="${output_file%.log}_stream.log"
             cp "$output_file" "$stream_output_file"
             local result_line
@@ -764,11 +1151,27 @@ execute_super_ralph() {
         if [[ "$use_modern_cli" == "true" ]]; then
             portable_timeout ${timeout_seconds}s "${CLAUDE_CMD_ARGS[@]}" > "$output_file" 2>&1 &
         else
+            # shellcheck disable=SC2086  # CLAUDE_CODE_CMD may contain flags (e.g. "npx @anthropic-ai/claude-code"); word-splitting is intentional
             portable_timeout ${timeout_seconds}s $CLAUDE_CODE_CMD < "$PROMPT_FILE" > "$output_file" 2>&1 &
         fi
 
         local claude_pid=$!
         local progress_counter=0
+
+        # A2: early background-failure detection. If CLAUDE_CODE_CMD doesn't
+        # exist or dies immediately, the backgrounded process exits before
+        # the monitor loop runs; surface the failure with a helpful message
+        # instead of hanging or silently returning.
+        sleep 1
+        if ! kill -0 "$claude_pid" 2>/dev/null; then
+            wait "$claude_pid" 2>/dev/null
+            local early_exit=$?
+            log_status "ERROR" "Claude CLI process exited immediately (exit $early_exit)"
+            if [[ -f "$output_file" && -s "$output_file" ]]; then
+                log_status "ERROR" "Last output: $(tail -5 "$output_file" 2>/dev/null | head -c 400)"
+            fi
+            return 1
+        fi
 
         while kill -0 $claude_pid 2>/dev/null; do
             progress_counter=$((progress_counter + 1))
@@ -803,8 +1206,31 @@ EOF
     fi
 
     if [[ $exit_code -eq 0 ]]; then
-        # Only increment counter on success
-        echo "$calls_made" > "$CALL_COUNT_FILE"
+        # P16: counter already persisted before execution; no duplicate write here.
+
+        # P7: Claude CLI can exit 0 with `"is_error": true` on API 400 / token
+        # expiry / tool-use-concurrency errors. Don't treat that as success —
+        # reset the session, skip save, and fall through to failure reporting.
+        local is_error="false"
+        if [[ -f "$output_file" ]]; then
+            is_error=$(jq -r '.is_error // false' "$output_file" 2>/dev/null)
+            [[ "$is_error" == "null" ]] && is_error="false"
+        fi
+        if [[ "$is_error" == "true" ]]; then
+            printf '{"status": "failed", "timestamp": "%s"}' "$(date '+%Y-%m-%d %H:%M:%S')" > "$PROGRESS_FILE"
+            log_status "ERROR" "Claude Code returned is_error:true; resetting session"
+            local err_msg
+            err_msg=$(jq -r '.error // .result // ""' "$output_file" 2>/dev/null | head -c 200)
+            if [[ -n "$err_msg" && "$err_msg" != "null" ]]; then
+                log_status "ERROR" "Claude error: $err_msg"
+            fi
+            if echo "$err_msg" | grep -qi "tool.use.*concurrency\|concurrent tool"; then
+                reset_session "tool_use_concurrency_error"
+            else
+                reset_session "api_error_is_error_true"
+            fi
+            return 1
+        fi
 
         printf '{"status": "completed", "timestamp": "%s"}' "$(date '+%Y-%m-%d %H:%M:%S')" > "$PROGRESS_FILE"
         log_status "SUCCESS" "Claude Code execution completed"
@@ -813,6 +1239,9 @@ EOF
         if [[ "$CLAUDE_USE_CONTINUE" == "true" ]]; then
             save_claude_session "$output_file"
         fi
+
+        # A4: accumulate token usage for hourly limit tracking.
+        update_token_count "$output_file"
 
         # Run superpowers post-execution checks
         log_status "SKILL" "Running TDD compliance check..."
@@ -872,8 +1301,107 @@ EOF
     else
         printf '{"status": "failed", "timestamp": "%s"}' "$(date '+%Y-%m-%d %H:%M:%S')" > "$PROGRESS_FILE"
 
-        if grep -qi "5.*hour.*limit\|limit.*reached.*try.*back\|usage.*limit.*reached" "$output_file" 2>/dev/null; then
+        # P4 Layer 1 (+ P9): timeout guard. Exit code 124 is a timeout, not an
+        # API limit — don't false-trigger the 5-hour recovery flow. Before
+        # treating the timeout as failure, check whether Claude made real
+        # progress (productive timeout, #198).
+        if [[ $exit_code -eq 124 ]]; then
+            log_status "WARN" "Claude Code execution timed out (not an API limit)"
+
+            local timeout_loop_start_sha=""
+            local timeout_current_sha=""
+            local timeout_files_changed=0
+
+            if [[ -f "$SUPER_RALPH_DIR/.loop_start_sha" ]]; then
+                timeout_loop_start_sha=$(cat "$SUPER_RALPH_DIR/.loop_start_sha" 2>/dev/null || echo "")
+            fi
+
+            if command -v git &>/dev/null && git rev-parse --git-dir &>/dev/null 2>&1; then
+                timeout_current_sha=$(git rev-parse HEAD 2>/dev/null || echo "")
+                timeout_files_changed=$(count_changed_files "$timeout_loop_start_sha" "$timeout_current_sha")
+            fi
+
+            if [[ $timeout_files_changed -gt 0 ]]; then
+                log_status "INFO" "Timeout but $timeout_files_changed file(s) changed — treating iteration as productive"
+                echo "{\"status\": \"timed_out_productive\", \"files_changed\": $timeout_files_changed, \"timestamp\": \"$(date '+%Y-%m-%d %H:%M:%S')\"}" > "$PROGRESS_FILE"
+
+                # Still save a session even though we timed out, so continuity
+                # isn't broken for follow-up loops.
+                if [[ "$CLAUDE_USE_CONTINUE" == "true" ]]; then
+                    save_claude_session "$output_file"
+                fi
+
+                # Run the response analyzer pipeline on whatever output exists.
+                if type analyze_response &>/dev/null 2>&1; then
+                    log_status "INFO" "Analyzing response from productive timeout..."
+                    analyze_response "$output_file" "$loop_count"
+                    local timeout_analysis_exit=$?
+
+                    if [[ $timeout_analysis_exit -eq 0 ]]; then
+                        if type update_exit_signals &>/dev/null 2>&1; then
+                            update_exit_signals
+                        fi
+                        if type log_analysis_summary &>/dev/null 2>&1; then
+                            log_analysis_summary
+                        fi
+                    else
+                        log_status "WARN" "Timeout response analysis failed (exit $timeout_analysis_exit); clearing stale analysis"
+                        rm -f "$RESPONSE_ANALYSIS_FILE"
+                    fi
+                fi
+
+                if type record_loop_result &>/dev/null 2>&1; then
+                    local timeout_output_length
+                    timeout_output_length=$(wc -c < "$output_file" 2>/dev/null || echo "0")
+                    record_loop_result "$loop_count" "$timeout_files_changed" "false" "$timeout_output_length"
+                    local timeout_circuit_result=$?
+                    if [[ $timeout_circuit_result -ne 0 ]]; then
+                        log_status "WARN" "Circuit breaker opened - halting execution"
+                        return 3
+                    fi
+                fi
+
+                return 0
+            else
+                log_status "WARN" "Timeout with no detectable progress"
+                return 1
+            fi
+        fi
+
+        # P4 Layer 2 (+ P5 whitespace tolerance): structural JSON check.
+        # The definitive signal from the CLI is a rate_limit_event with
+        # status:rejected; prefer it over text scanning.
+        if grep -q '"rate_limit_event"' "$output_file" 2>/dev/null; then
+            local last_rate_event
+            last_rate_event=$(grep '"rate_limit_event"' "$output_file" 2>/dev/null | tail -1)
+            if echo "$last_rate_event" | grep -qE '"status"[[:space:]]*:[[:space:]]*"rejected"'; then
+                log_status "ERROR" "Claude API 5-hour usage limit reached"
+                return 2
+            fi
+        fi
+
+        # P4 Layer 3 (+ P5 whitespace tolerance): filtered text fallback.
+        # Scan only the tail and skip tool-result / user-echo lines so
+        # project files that happen to contain "5-hour limit" don't trigger
+        # a false positive.
+        if tail -30 "$output_file" 2>/dev/null \
+            | grep -vE '"type"[[:space:]]*:[[:space:]]*"user"' \
+            | grep -v '"tool_result"' \
+            | grep -v '"tool_use_id"' \
+            | grep -qi "5.*hour.*limit\|limit.*reached.*try.*back\|usage.*limit.*reached"; then
             log_status "ERROR" "Claude API 5-hour usage limit reached"
+            return 2
+        fi
+
+        # P10 Layer 4: Extra Usage quota exhaustion (Ralph #100).
+        # "You're out of extra usage · resets 9pm" uses a different message
+        # than the 5-hour plan limit, but the user recovery flow is the same.
+        if tail -30 "$output_file" 2>/dev/null \
+            | grep -vE '"type"[[:space:]]*:[[:space:]]*"user"' \
+            | grep -v '"tool_result"' \
+            | grep -v '"tool_use_id"' \
+            | grep -qi "out of extra usage"; then
+            log_status "ERROR" "Claude Extra Usage quota exhausted"
             return 2
         fi
 
@@ -886,24 +1414,31 @@ EOF
 # GRACEFUL EXIT DETECTION & CONFIG VALIDATION (extracted to lib/exit_detector.sh)
 # =============================================================================
 
-source "$SCRIPT_DIR/lib/exit_detector.sh"
+source "$SCRIPT_DIR/lib/exit_detector.sh" || { echo "FATAL: lib/exit_detector.sh failed to source" >&2; exit 1; }
 
 # =============================================================================
 # TMUX MONITORING (extracted to lib/tmux_utils.sh)
 # =============================================================================
 
-source "$SCRIPT_DIR/lib/tmux_utils.sh"
+source "$SCRIPT_DIR/lib/tmux_utils.sh" || { echo "FATAL: lib/tmux_utils.sh failed to source" >&2; exit 1; }
 
 # =============================================================================
 # SIGNAL HANDLING
 # =============================================================================
 
 loop_count=0
+_cleanup_in_progress=false
 
 cleanup() {
+    # A10: re-entrancy guard. With set -e gone, a second SIGINT during cleanup
+    # could re-enter reset_session while the first call is still running.
+    if [[ "$_cleanup_in_progress" == "true" ]]; then
+        exit 130
+    fi
+    _cleanup_in_progress=true
     log_status "INFO" "Super-Ralph loop interrupted. Cleaning up..."
-    reset_session "manual_interrupt"
-    update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "interrupted" "stopped"
+    reset_session "manual_interrupt" 2>/dev/null || true
+    update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "interrupted" "stopped" 2>/dev/null || true
     exit 0
 }
 
@@ -922,6 +1457,27 @@ main() {
                 exit 1
             fi
         fi
+    fi
+
+    # A4: source an optional shell init file before running claude so
+    # zsh-only users can export PATH / auth env vars via ~/.zshrc.
+    # SUPER_RALPH_SHELL_INIT_FILE takes precedence over RALPH_SHELL_INIT_FILE.
+    local shell_init_file="${SUPER_RALPH_SHELL_INIT_FILE:-${RALPH_SHELL_INIT_FILE:-}}"
+    if [[ -n "$shell_init_file" ]]; then
+        if [[ -f "$shell_init_file" ]]; then
+            # shellcheck source=/dev/null
+            source "$shell_init_file"
+            log_status "INFO" "Sourced shell init file: $shell_init_file"
+        else
+            log_status "WARN" "Shell init file not found: $shell_init_file"
+        fi
+    fi
+
+    # A2: pre-flight check that claude is actually invokable. Don't spin up a
+    # loop that will hang on every iteration because the CLI is missing.
+    if ! validate_claude_command; then
+        log_status "ERROR" "Claude Code CLI not found: $CLAUDE_CODE_CMD"
+        exit 1
     fi
 
     echo -e "${CYAN}"
@@ -960,8 +1516,25 @@ main() {
     init_session_tracking
     init_call_tracking
 
+    # A1: fail fast if any critical .ralph/ file is missing. Don't spin up a
+    # loop that can't possibly make progress.
+    if ! validate_ralph_integrity; then
+        log_status "ERROR" "Super-Ralph project integrity check failed"
+        get_integrity_report
+        exit 1
+    fi
+
+    # P8: stale exit-signal state from a previous killed run can make a fresh
+    # run graceful-exit on loop 1 before doing any work. Reset the signals
+    # file and drop any leftover response-analysis snapshot.
+    echo '{"test_only_loops": [], "done_signals": [], "completion_indicators": []}' > "$EXIT_SIGNALS_FILE"
+    rm -f "$RESPONSE_ANALYSIS_FILE"
+
     while true; do
         loop_count=$((loop_count + 1))
+        # A6: rotate per-iteration Claude logs so .ralph/logs/ doesn't grow
+        # unbounded in long-running projects.
+        rotate_logs
         update_session_last_used
 
         log_status "LOOP" "=== Starting Loop #$loop_count ==="
@@ -973,6 +1546,7 @@ main() {
                 update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "circuit_breaker_open" "halted" "stagnation_detected"
                 log_status "ERROR" "Circuit breaker has opened - execution halted"
                 log_status "INFO" "Run 'super-ralph --reset-circuit' to reset after addressing issues"
+                send_notification "Super-Ralph - Circuit Breaker" "Circuit breaker opened — execution halted due to stagnation"
                 break
             fi
         fi
@@ -1000,6 +1574,7 @@ main() {
             fi
 
             log_status "SUCCESS" "Graceful exit: $exit_reason"
+            send_notification "Super-Ralph - Complete" "Project completed. Exit reason: $exit_reason"
             reset_session "project_complete"
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "graceful_exit" "completed" "$exit_reason"
 
@@ -1007,6 +1582,8 @@ main() {
             log_status "INFO" "  - Total loops: $loop_count"
             log_status "INFO" "  - API calls: $(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")"
             log_status "INFO" "  - Exit reason: $exit_reason"
+            # A7: aggregate metrics summary from .ralph/logs/metrics.jsonl.
+            print_metrics_summary
             break
         fi
 
@@ -1015,8 +1592,30 @@ main() {
         calls_made=$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")
         update_status "$loop_count" "$calls_made" "executing" "running"
 
+        # A7: capture loop start timestamp and pre-execution call count so
+        # the metrics record reflects per-iteration duration and call delta.
+        local loop_start_epoch
+        loop_start_epoch=$(get_epoch_seconds)
+        local calls_before_exec="$calls_made"
+
+        # A9: optional git backup branch before each iteration. Safe no-op
+        # unless ENABLE_BACKUP=true and we're in a git repo.
+        create_backup "$loop_count"
+
         execute_super_ralph "$loop_count"
         local exec_result=$?
+
+        # A7: record per-loop metrics. Success flag mirrors exec_result == 0;
+        # calls_this_loop is a delta so total_calls stays accurate across
+        # hourly resets.
+        local loop_duration
+        loop_duration=$(( $(get_epoch_seconds) - loop_start_epoch ))
+        local loop_success="false"
+        [[ $exec_result -eq 0 ]] && loop_success="true"
+        local calls_after_exec
+        calls_after_exec=$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")
+        local calls_this_loop=$(( calls_after_exec > calls_before_exec ? calls_after_exec - calls_before_exec : 0 ))
+        track_metrics "$loop_count" "$loop_duration" "$loop_success" "$calls_this_loop"
 
         if [[ $exec_result -eq 0 ]]; then
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "completed" "success"
@@ -1026,20 +1625,27 @@ main() {
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "circuit_breaker_open" "halted" "stagnation_detected"
             log_status "ERROR" "Circuit breaker opened - halting"
             log_status "INFO" "Run 'super-ralph --reset-circuit' to reset"
+            send_notification "Super-Ralph - Circuit Breaker" "Circuit breaker tripped — execution halted"
             break
         elif [[ $exec_result -eq 2 ]]; then
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "api_limit" "paused"
-            log_status "WARN" "Claude API 5-hour limit reached!"
-            echo -e "\n${YELLOW}The Claude API 5-hour usage limit has been reached.${NC}"
+            log_status "WARN" "Claude API usage limit reached!"
+            send_notification "Super-Ralph - API Limit" "Claude API usage limit reached (5-hour plan or Extra Usage)"
+            # P10: copy covers both the 5-hour plan limit and Extra Usage quota.
+            echo -e "\n${YELLOW}A Claude API usage limit has been reached (5-hour plan limit or Extra Usage quota).${NC}"
             echo -e "  ${GREEN}1)${NC} Wait for the limit to reset (usually within an hour)"
             echo -e "  ${GREEN}2)${NC} Exit the loop and try again later"
             echo -e "\n${BLUE}Choose an option (1 or 2):${NC} "
 
-            read -r -t 30 -n 1 user_choice
+            # P3: read -t exits non-zero on timeout; `|| true` prevents set -e abort.
+            read -r -t 30 -n 1 user_choice || true
             echo
 
             if [[ "$user_choice" == "2" ]] || [[ -z "$user_choice" ]]; then
                 log_status "INFO" "User chose to exit (or timed out). Exiting loop..."
+                # P8: reset the session so the next manual run doesn't inherit
+                # this rate-limited one.
+                reset_session "api_limit_exit"
                 update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "api_limit_exit" "stopped" "api_5hour_limit"
                 break
             else
@@ -1057,6 +1663,7 @@ main() {
         else
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "failed" "error"
             log_status "WARN" "Execution failed, waiting ${RETRY_BACKOFF_SECONDS} seconds before retry..."
+            send_notification "Super-Ralph - Execution Failed" "Loop $loop_count failed — retrying in ${RETRY_BACKOFF_SECONDS}s"
             sleep "$RETRY_BACKOFF_SECONDS"
         fi
 
@@ -1094,6 +1701,12 @@ Options:
     --reset-circuit         Reset circuit breaker
     --circuit-status        Show circuit breaker status
     --reset-session         Reset session state
+    --dry-run               Simulate loop without making Claude API calls
+    -n, --notify            Enable cross-platform desktop notifications
+    --model MODEL           Override --model for Claude CLI (env: CLAUDE_MODEL)
+    --effort LEVEL          Override --effort for Claude CLI (env: CLAUDE_EFFORT)
+    -b, --backup            Create a git backup branch before each loop iteration
+    --rollback [BRANCH]     Roll back to a super-ralph backup branch (lists if no arg)
 
 Superpowers Features:
     - Automatic task classification (feature/bug/plan/completion/review)
@@ -1182,6 +1795,41 @@ while [[ $# -gt 0 ]]; do
             reset_session "manual_reset_flag"
             echo -e "${GREEN}Session state reset successfully${NC}"
             exit 0
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        -n|--notify)
+            ENABLE_NOTIFICATIONS=true
+            shift
+            ;;
+        --model)
+            if [[ -z "$2" ]]; then
+                echo "Error: --model requires a value"
+                exit 1
+            fi
+            CLAUDE_MODEL="$2"
+            shift 2
+            ;;
+        --effort)
+            if [[ -z "$2" ]]; then
+                echo "Error: --effort requires a value"
+                exit 1
+            fi
+            CLAUDE_EFFORT="$2"
+            shift 2
+            ;;
+        -b|--backup)
+            ENABLE_BACKUP=true
+            # _cli_ENABLE_BACKUP signals to load_ralphrc that --backup outranks
+            # ENABLE_BACKUP=false in .ralphrc (A9 review feedback).
+            _cli_ENABLE_BACKUP=true
+            shift
+            ;;
+        --rollback)
+            rollback_to_backup "${2:-}"
+            exit $?
             ;;
         *) echo "Unknown option: $1"; show_help; exit 1 ;;
     esac

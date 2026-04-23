@@ -31,11 +31,15 @@ log_status() {
         "SKILL")   color=$CYAN ;;
     esac
 
-    echo -e "${color}[$timestamp] [$level] $message${NC}" >&2
+    # P11: guard against dead tmux panes (broken pty) — a failed write must not
+    # propagate non-zero under set -e and kill the loop. Keep the message on
+    # stderr when the pty is healthy; swallow failures and any OS-level write
+    # error messages when it isn't.
+    echo -e "${color}[$timestamp] [$level] $message${NC}" >&2 2>/dev/null || true
 
     # Write to log file if LOG_DIR is set
     if [[ -n "${LOG_DIR:-}" ]] && [[ -d "$LOG_DIR" ]]; then
-        echo "[$timestamp] [$level] $message" >> "$LOG_DIR/super-ralph.log"
+        echo "[$timestamp] [$level] $message" >> "$LOG_DIR/super-ralph.log" 2>/dev/null || true
     fi
 }
 

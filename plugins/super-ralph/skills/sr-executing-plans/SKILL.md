@@ -5,6 +5,27 @@ description: Use when you have a written implementation plan to execute in a sep
 
 # Executing Plans
 
+## Intentional Divergences
+
+Upstream Superpowers' `executing-plans` skill dropped its "execute a
+batch of 3, report, continue" pattern in early March 2026 (commit
+`3bdd66e`), based on regression data showing batch-and-stop added
+~25 min of overhead without measurably improving plan quality. Their
+replacement flow is "execute all tasks, report when complete."
+
+Super-Ralph **deliberately preserves the 3-task batch pattern** here.
+`sr-executing-plans` is the dedicated "parallel session with
+human-checkpoint fallback" path offered in `sr-writing-plans`'s
+Execution Handoff. Harnesses that don't have good subagent support
+(e.g., bare terminals, plugin-less Gemini CLI, headless CI without
+Task tool access) rely on this serialized, checkpoint-driven flow —
+that's the UX contract we're preserving. Harnesses with good subagent
+support should prefer `sr-subagent-driven-development` and get the
+single-pass behavior Superpowers upstream adopted.
+
+If you're extending this skill, keep the batch pattern intact. If you
+want unbatched execution, use `sr-subagent-driven-development`.
+
 ## Overview
 
 Load plan, review critically, execute tasks in batches, report for review between batches.

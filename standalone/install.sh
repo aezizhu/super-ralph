@@ -106,7 +106,13 @@ install_super_ralph() {
     cp "$SCRIPT_DIR/lib/tmux_utils.sh" "$SUPER_RALPH_HOME/lib/"
     cp "$SCRIPT_DIR/lib/exit_detector.sh" "$SUPER_RALPH_HOME/lib/"
     cp "$SCRIPT_DIR/lib/logging.sh" "$SUPER_RALPH_HOME/lib/"
+    cp "$SCRIPT_DIR/lib/file_protection.sh" "$SUPER_RALPH_HOME/lib/"
+    cp "$SCRIPT_DIR/lib/log_utils.sh" "$SUPER_RALPH_HOME/lib/"
     chmod +x "$SUPER_RALPH_HOME/lib/"*.sh
+
+    # A7: ship the metrics analytics helper alongside the main loop.
+    cp "$SCRIPT_DIR/super-ralph-stats.sh" "$SUPER_RALPH_HOME/"
+    chmod +x "$SUPER_RALPH_HOME/super-ralph-stats.sh"
 
     # Copy templates
     cp "$SCRIPT_DIR/super-ralph-prompt.md" "$SUPER_RALPH_HOME/templates/PROMPT.md"
@@ -125,6 +131,14 @@ SUPER_RALPH_HOME="$HOME/.super-ralph"
 exec "$SUPER_RALPH_HOME/super_ralph_loop.sh" "$@"
 CMDEOF
     chmod +x "$INSTALL_DIR/super-ralph"
+
+    # A7: create the super-ralph-stats analytics command.
+    cat > "$INSTALL_DIR/super-ralph-stats" << 'CMDEOF'
+#!/bin/bash
+SUPER_RALPH_HOME="$HOME/.super-ralph"
+exec "$SUPER_RALPH_HOME/super-ralph-stats.sh" "$@"
+CMDEOF
+    chmod +x "$INSTALL_DIR/super-ralph-stats"
 
     # Create super-ralph-setup command
     cat > "$INSTALL_DIR/super-ralph-setup" << 'CMDEOF'
@@ -242,13 +256,14 @@ check_path() {
 
 uninstall() {
     log "INFO" "Uninstalling Super-Ralph..."
-    rm -f "$INSTALL_DIR/super-ralph" "$INSTALL_DIR/super-ralph-setup"
+    rm -f "$INSTALL_DIR/super-ralph" "$INSTALL_DIR/super-ralph-setup" "$INSTALL_DIR/super-ralph-stats"
     rm -rf "$SUPER_RALPH_HOME"
 
     # Verify removal succeeded
     local remaining=()
     [[ -f "$INSTALL_DIR/super-ralph" ]] && remaining+=("$INSTALL_DIR/super-ralph")
     [[ -f "$INSTALL_DIR/super-ralph-setup" ]] && remaining+=("$INSTALL_DIR/super-ralph-setup")
+    [[ -f "$INSTALL_DIR/super-ralph-stats" ]] && remaining+=("$INSTALL_DIR/super-ralph-stats")
     [[ -d "$SUPER_RALPH_HOME" ]] && remaining+=("$SUPER_RALPH_HOME")
 
     if [[ ${#remaining[@]} -gt 0 ]]; then

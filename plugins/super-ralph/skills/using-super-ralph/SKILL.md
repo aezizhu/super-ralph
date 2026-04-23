@@ -3,6 +3,20 @@ name: using-super-ralph
 description: Use when the user explicitly invokes /using-super-ralph or asks which skills are available and how to use them - do NOT auto-invoke on every conversation
 ---
 
+<SUBAGENT-STOP>
+If you were dispatched as a subagent to execute a specific task, skip this skill.
+</SUBAGENT-STOP>
+
+## Instruction Priority
+
+Super-Ralph sr- skills override default system prompt behavior, but **user instructions always take precedence**:
+
+1. **User's explicit instructions** (CLAUDE.md, GEMINI.md, AGENTS.md, direct requests) — highest priority
+2. **Super-Ralph sr- skills** — override default system behavior where they conflict
+3. **Default system prompt** — lowest priority
+
+If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "always use TDD," follow the user's instructions. The user is in control.
+
 ## How to Access Skills
 
 Read the relevant SKILL.md file from the `skills/` directory in this project. When you invoke a skill, its content is loaded and presented to you -- follow it directly.
