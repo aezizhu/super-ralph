@@ -53,6 +53,9 @@ setup_tmux_session() {
     [[ "$CLAUDE_TIMEOUT_MINUTES" != "15" ]] && sr_cmd="$sr_cmd --timeout $CLAUDE_TIMEOUT_MINUTES"
     [[ "$CLAUDE_USE_CONTINUE" == "false" ]] && sr_cmd="$sr_cmd --no-continue"
     [[ "$CLAUDE_SESSION_EXPIRY_HOURS" != "24" ]] && sr_cmd="$sr_cmd --session-expiry $CLAUDE_SESSION_EXPIRY_HOURS"
+    # P1: auto-terminate the tmux session when the loop exits so tail -f / watch
+    # in the other panes don't keep the window alive.
+    sr_cmd="$sr_cmd; tmux kill-session -t $session_name 2>/dev/null"
 
     tmux send-keys -t "$session_name:${base_win}.0" "$sr_cmd" Enter
     tmux select-pane -t "$session_name:${base_win}.0"

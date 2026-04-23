@@ -686,12 +686,13 @@ execute_super_ralph() {
     local exit_code=0
 
     if [[ "$LIVE_OUTPUT" == "true" ]]; then
-        # Live streaming mode (requires jq + stdbuf)
+        # Live streaming mode (requires jq)
+        # P12: stdbuf removed — Homebrew coreutils stdbuf uses DYLD_INSERT_LIBRARIES
+        # and is rejected by /usr/bin/tee on arm64e Apple Silicon, crashing --live.
+        # claude flushes per-event, tee is write-through, and jq --unbuffered
+        # self-flushes, so stdbuf adds nothing.
         if ! command -v jq &>/dev/null; then
             log_status "ERROR" "Live mode requires 'jq'. Falling back to background mode."
-            LIVE_OUTPUT=false
-        elif ! command -v stdbuf &>/dev/null; then
-            log_status "ERROR" "Live mode requires 'stdbuf'. Falling back to background mode."
             LIVE_OUTPUT=false
         fi
     fi
@@ -727,13 +728,18 @@ execute_super_ralph() {
                 else
                     empty
                 end
+            elif .type == "system" and .subtype == "task_started" then
+                "\n[agent: " + (.agent // "subagent") + " started" + (if .description then " — " + .description else "" end) + "]\n"
+            elif .type == "system" and .subtype == "task_progress" then
+                "\n[agent: " + (.agent // "subagent") + " progress" + (if .description then " — " + .description else "" end) + "]\n"
             else
                 empty
             end'
 
         set -o pipefail
-        portable_timeout ${timeout_seconds}s stdbuf -oL "${LIVE_CMD_ARGS[@]}" \
-            2>&1 | stdbuf -oL tee "$output_file" | stdbuf -oL jq --unbuffered -j "$jq_filter" 2>/dev/null | tee "$LIVE_LOG_FILE"
+        # P12: removed stdbuf from all stages of the pipeline (see above).
+        portable_timeout ${timeout_seconds}s "${LIVE_CMD_ARGS[@]}" \
+            2>&1 | tee "$output_file" | jq --unbuffered -j "$jq_filter" 2>/dev/null | tee "$LIVE_LOG_FILE"
 
         local -a pipe_status=("${PIPESTATUS[@]}")
         set +o pipefail
@@ -745,8 +751,11 @@ execute_super_ralph() {
         echo ""
         echo -e "${PURPLE}━━━━━━━━━━━━━━━━ End of Output ━━━━━━━━━━━━━━━━━━━${NC}"
 
-        # Extract session from stream-json output
-        if [[ "$CLAUDE_USE_CONTINUE" == "true" && -f "$output_file" ]]; then
+        # P14: always normalize the stream-json log to a single result JSON
+        # object. Previously gated on CLAUDE_USE_CONTINUE=true, so continuity-off
+        # runs left the raw stream frames in $output_file and downstream jq
+        # consumers crashed under set -e.
+        if [[ -f "$output_file" ]]; then
             local stream_output_file="${output_file%.log}_stream.log"
             cp "$output_file" "$stream_output_file"
             local result_line
@@ -1035,7 +1044,8 @@ main() {
             echo -e "  ${GREEN}2)${NC} Exit the loop and try again later"
             echo -e "\n${BLUE}Choose an option (1 or 2):${NC} "
 
-            read -r -t 30 -n 1 user_choice
+            # P3: read -t exits non-zero on timeout; `|| true` prevents set -e abort.
+            read -r -t 30 -n 1 user_choice || true
             echo
 
             if [[ "$user_choice" == "2" ]] || [[ -z "$user_choice" ]]; then
