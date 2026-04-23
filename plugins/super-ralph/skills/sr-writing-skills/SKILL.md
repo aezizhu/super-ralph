@@ -48,7 +48,7 @@ skills/
 ## SKILL.md Structure
 
 **Frontmatter (YAML):**
-- Only two fields supported: `name` and `description`
+- Two required fields: `name` and `description` (see [agentskills.io/specification](https://agentskills.io/specification) for all supported fields)
 - `name`: Use letters, numbers, and hyphens only
 - `description`: Third-person, describes ONLY when to use (NOT what it does)
   - Start with "Use when..." to focus on triggering conditions
@@ -106,7 +106,7 @@ Agent found new rationalization? Add explicit counter. Re-test until bulletproof
 
 **GREEN Phase:**
 - [ ] Name uses only letters, numbers, hyphens
-- [ ] YAML frontmatter with name and description
+- [ ] YAML frontmatter with required `name` and `description` (see [agentskills.io/specification](https://agentskills.io/specification))
 - [ ] Description starts with "Use when..."
 - [ ] Clear overview with core principle
 - [ ] Address specific baseline failures

@@ -46,7 +46,7 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 ## Task Structure
 
-```markdown
+````markdown
 ### Task N: [Component Name]
 
 **Files:**
@@ -56,11 +56,11 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Step 1: Write the failing test**
 
-\`\`\`python
+```python
 def test_specific_behavior():
     result = function(input)
     assert result == expected
-\`\`\`
+```
 
 **Step 2: Run test to verify it fails**
 
@@ -69,10 +69,10 @@ Expected: FAIL with "function not defined"
 
 **Step 3: Write minimal implementation**
 
-\`\`\`python
+```python
 def function(input):
     return expected
-\`\`\`
+```
 
 **Step 4: Run test to verify it passes**
 
@@ -81,11 +81,11 @@ Expected: PASS
 
 **Step 5: Commit**
 
-\`\`\`bash
+```bash
 git add tests/path/test.py src/path/file.py
 git commit -m "feat: add specific feature"
-\`\`\`
 ```
+````
 
 ## Red Flags
 
