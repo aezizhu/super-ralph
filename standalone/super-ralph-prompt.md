@@ -155,6 +155,26 @@ Set EXIT_SIGNAL to **true** ONLY when ALL of these are verified (not assumed):
 - Do NOT continue with busy work when EXIT_SIGNAL should be true
 - Do NOT forget to include the status block
 
+## Protected Files
+
+Super-Ralph runs a startup integrity check on every loop. The following
+paths MUST continue to exist — deleting or renaming any of them will
+refuse to start the next loop until they are restored:
+
+- `.ralph/` — the entire Super-Ralph project directory
+- `.ralph/PROMPT.md` — this file (Super-Ralph development instructions)
+- `.ralph/fix_plan.md` — the prioritized TODO list
+- `.ralph/AGENT.md` — project build and run instructions
+- `.ralphrc` — runtime configuration
+
+Never delete, move, or rename these files as part of routine work. If a
+task legitimately requires restructuring the `.ralph/` layout, pause
+the loop first, perform the restructure deliberately, and update
+`standalone/lib/file_protection.sh::RALPH_REQUIRED_PATHS` to match.
+
+Also treat `.github/workflows/` with the same care — removing a CI
+workflow silently disables test gating for the repo.
+
 ## File Structure
 - .ralph/: Ralph-specific configuration and documentation
   - specs/: Project specifications and requirements

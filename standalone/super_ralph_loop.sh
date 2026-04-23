@@ -104,6 +104,14 @@ _env_CLAUDE_SESSION_EXPIRY_HOURS="${CLAUDE_SESSION_EXPIRY_HOURS:-}"
 _env_VERBOSE_PROGRESS="${VERBOSE_PROGRESS:-}"
 _env_MAX_CONSECUTIVE_TEST_LOOPS="${MAX_CONSECUTIVE_TEST_LOOPS:-}"
 _env_MAX_CONSECUTIVE_DONE_SIGNALS="${MAX_CONSECUTIVE_DONE_SIGNALS:-}"
+# A2/A3: snapshot CLAUDE_CODE_CMD before the default is applied so .ralphrc
+# values aren't silently overwritten (upstream b31640a).
+_env_CLAUDE_CODE_CMD="${CLAUDE_CODE_CMD:-}"
+# A3: model / effort overrides (upstream b31640a).
+_env_CLAUDE_MODEL="${CLAUDE_MODEL:-}"
+_env_CLAUDE_EFFORT="${CLAUDE_EFFORT:-}"
+# A8: notification opt-in (upstream a1f6d5f).
+_env_ENABLE_NOTIFICATIONS="${ENABLE_NOTIFICATIONS:-}"
 
 MAX_CALLS_PER_HOUR="${MAX_CALLS_PER_HOUR:-100}"
 CLAUDE_TIMEOUT_MINUTES="${CLAUDE_TIMEOUT_MINUTES:-15}"
@@ -111,7 +119,16 @@ CLAUDE_OUTPUT_FORMAT="${CLAUDE_OUTPUT_FORMAT:-json}"
 CLAUDE_ALLOWED_TOOLS="${CLAUDE_ALLOWED_TOOLS:-__AUTO_DETECT__}"
 CLAUDE_USE_CONTINUE="${CLAUDE_USE_CONTINUE:-true}"
 CLAUDE_SESSION_EXPIRY_HOURS="${CLAUDE_SESSION_EXPIRY_HOURS:-24}"
-CLAUDE_CODE_CMD="claude"
+# A3: respect CLAUDE_CODE_CMD from .ralphrc / env; previous hardcoded
+# "claude" overwrote load_ralphrc's value.
+CLAUDE_CODE_CMD="${CLAUDE_CODE_CMD:-claude}"
+CLAUDE_MODEL="${CLAUDE_MODEL:-}"
+CLAUDE_EFFORT="${CLAUDE_EFFORT:-}"
+# A5: --dry-run simulates the loop without hitting the Claude API.
+DRY_RUN="${DRY_RUN:-false}"
+# A8: desktop notifications; off by default. Enable via --notify or
+# ENABLE_NOTIFICATIONS=true.
+ENABLE_NOTIFICATIONS="${ENABLE_NOTIFICATIONS:-false}"
 VERBOSE_PROGRESS="${VERBOSE_PROGRESS:-false}"
 USE_TMUX=false
 LIVE_OUTPUT=false
@@ -136,6 +153,38 @@ mkdir -p "$LOG_DIR" "$DOCS_DIR" "docs/plans"
 # Source shared logging library
 source "$SCRIPT_DIR/lib/logging.sh"
 
+# A1: file integrity validation (upstream lib/file_protection.sh).
+source "$SCRIPT_DIR/lib/file_protection.sh"
+
+# A6: per-iteration log rotation (upstream lib/log_utils.sh, adapted).
+source "$SCRIPT_DIR/lib/log_utils.sh"
+
+# =============================================================================
+# NOTIFICATIONS (A8)
+# =============================================================================
+# Cross-platform desktop notification helper. macOS (osascript), Linux
+# (notify-send), fallback to terminal bell. No-op when ENABLE_NOTIFICATIONS
+# is not "true". Any failure is swallowed so notification problems never
+# kill the loop.
+send_notification() {
+    local title="$1"
+    local message="$2"
+
+    [[ "${ENABLE_NOTIFICATIONS:-false}" == "true" ]] || return 0
+
+    # Strip double quotes so we can't break an AppleScript string literal.
+    local safe_title="${title//\"/}"
+    local safe_message="${message//\"/}"
+
+    if command -v osascript &>/dev/null; then
+        osascript -e "display notification \"$safe_message\" with title \"$safe_title\"" 2>/dev/null || true
+    elif command -v notify-send &>/dev/null; then
+        notify-send "$title" "$message" 2>/dev/null || true
+    else
+        printf '\a\n' 2>/dev/null || true
+    fi
+}
+
 # =============================================================================
 # RALPHRC CONFIGURATION
 # =============================================================================
@@ -156,6 +205,12 @@ load_ralphrc() {
     [[ -n "${SESSION_EXPIRY_HOURS:-}" ]] && CLAUDE_SESSION_EXPIRY_HOURS="$SESSION_EXPIRY_HOURS"
     [[ -n "${RALPH_VERBOSE:-}" ]] && VERBOSE_PROGRESS="$RALPH_VERBOSE"
 
+    # A3: respect .ralphrc overrides for new vars too (and then re-apply env
+    # snapshots so env > ralphrc > defaults precedence holds).
+    [[ -n "${CLAUDE_CODE_CMD:-}" ]] && : # already set via env-or-default above
+    [[ -n "${CLAUDE_MODEL:-}" ]] && :
+    [[ -n "${CLAUDE_EFFORT:-}" ]] && :
+
     # Restore values explicitly set via environment variables (env > ralphrc > defaults)
     [[ -n "$_env_MAX_CALLS_PER_HOUR" ]] && MAX_CALLS_PER_HOUR="$_env_MAX_CALLS_PER_HOUR"
     [[ -n "$_env_CLAUDE_TIMEOUT_MINUTES" ]] && CLAUDE_TIMEOUT_MINUTES="$_env_CLAUDE_TIMEOUT_MINUTES"
@@ -166,6 +221,10 @@ load_ralphrc() {
     [[ -n "$_env_VERBOSE_PROGRESS" ]] && VERBOSE_PROGRESS="$_env_VERBOSE_PROGRESS"
     [[ -n "$_env_MAX_CONSECUTIVE_TEST_LOOPS" ]] && MAX_CONSECUTIVE_TEST_LOOPS="$_env_MAX_CONSECUTIVE_TEST_LOOPS"
     [[ -n "$_env_MAX_CONSECUTIVE_DONE_SIGNALS" ]] && MAX_CONSECUTIVE_DONE_SIGNALS="$_env_MAX_CONSECUTIVE_DONE_SIGNALS"
+    [[ -n "$_env_CLAUDE_CODE_CMD" ]] && CLAUDE_CODE_CMD="$_env_CLAUDE_CODE_CMD"
+    [[ -n "$_env_CLAUDE_MODEL" ]] && CLAUDE_MODEL="$_env_CLAUDE_MODEL"
+    [[ -n "$_env_CLAUDE_EFFORT" ]] && CLAUDE_EFFORT="$_env_CLAUDE_EFFORT"
+    [[ -n "$_env_ENABLE_NOTIFICATIONS" ]] && ENABLE_NOTIFICATIONS="$_env_ENABLE_NOTIFICATIONS"
 
     RALPHRC_LOADED=true
     return 0
@@ -520,6 +579,14 @@ build_claude_command() {
         return 1
     fi
 
+    # A3: model / effort overrides (upstream b31640a). Empty string = CLI default.
+    if [[ -n "${CLAUDE_MODEL:-}" ]]; then
+        CLAUDE_CMD_ARGS+=("--model" "$CLAUDE_MODEL")
+    fi
+    if [[ -n "${CLAUDE_EFFORT:-}" ]]; then
+        CLAUDE_CMD_ARGS+=("--effort" "$CLAUDE_EFFORT")
+    fi
+
     if [[ "$CLAUDE_OUTPUT_FORMAT" == "json" ]]; then
         CLAUDE_CMD_ARGS+=("--output-format" "json")
     fi
@@ -639,6 +706,16 @@ execute_super_ralph() {
     # P15: capture claude CLI stderr in a sibling file so Node/undici warnings
     # don't corrupt the stdout JSON stream that jq parses in live mode.
     local stderr_file="$LOG_DIR/claude_stderr_${timestamp}.log"
+
+    # A5: dry-run short-circuits before any API work or counter bump.
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log_status "INFO" "[DRY RUN] Skipping Claude Code execution for loop $loop_count"
+        log_status "INFO" "[DRY RUN] Would execute $CLAUDE_CODE_CMD with prompt: $PROMPT_FILE"
+        log_status "INFO" "[DRY RUN] Output format: $CLAUDE_OUTPUT_FORMAT, timeout: ${CLAUDE_TIMEOUT_MINUTES}m"
+        sleep 2
+        log_status "INFO" "[DRY RUN] Simulation complete — no API call made"
+        return 0
+    fi
 
     # Capture git HEAD SHA for progress detection
     local loop_start_sha=""
@@ -1117,6 +1194,14 @@ main() {
     init_session_tracking
     init_call_tracking
 
+    # A1: fail fast if any critical .ralph/ file is missing. Don't spin up a
+    # loop that can't possibly make progress.
+    if ! validate_ralph_integrity; then
+        log_status "ERROR" "Super-Ralph project integrity check failed"
+        get_integrity_report
+        exit 1
+    fi
+
     # P8: stale exit-signal state from a previous killed run can make a fresh
     # run graceful-exit on loop 1 before doing any work. Reset the signals
     # file and drop any leftover response-analysis snapshot.
@@ -1125,6 +1210,9 @@ main() {
 
     while true; do
         loop_count=$((loop_count + 1))
+        # A6: rotate per-iteration Claude logs so .ralph/logs/ doesn't grow
+        # unbounded in long-running projects.
+        rotate_logs
         update_session_last_used
 
         log_status "LOOP" "=== Starting Loop #$loop_count ==="
@@ -1136,6 +1224,7 @@ main() {
                 update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "circuit_breaker_open" "halted" "stagnation_detected"
                 log_status "ERROR" "Circuit breaker has opened - execution halted"
                 log_status "INFO" "Run 'super-ralph --reset-circuit' to reset after addressing issues"
+                send_notification "Super-Ralph - Circuit Breaker" "Circuit breaker opened — execution halted due to stagnation"
                 break
             fi
         fi
@@ -1163,6 +1252,7 @@ main() {
             fi
 
             log_status "SUCCESS" "Graceful exit: $exit_reason"
+            send_notification "Super-Ralph - Complete" "Project completed. Exit reason: $exit_reason"
             reset_session "project_complete"
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "graceful_exit" "completed" "$exit_reason"
 
@@ -1189,10 +1279,12 @@ main() {
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "circuit_breaker_open" "halted" "stagnation_detected"
             log_status "ERROR" "Circuit breaker opened - halting"
             log_status "INFO" "Run 'super-ralph --reset-circuit' to reset"
+            send_notification "Super-Ralph - Circuit Breaker" "Circuit breaker tripped — execution halted"
             break
         elif [[ $exec_result -eq 2 ]]; then
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "api_limit" "paused"
             log_status "WARN" "Claude API usage limit reached!"
+            send_notification "Super-Ralph - API Limit" "Claude API usage limit reached (5-hour plan or Extra Usage)"
             # P10: copy covers both the 5-hour plan limit and Extra Usage quota.
             echo -e "\n${YELLOW}A Claude API usage limit has been reached (5-hour plan limit or Extra Usage quota).${NC}"
             echo -e "  ${GREEN}1)${NC} Wait for the limit to reset (usually within an hour)"
@@ -1225,6 +1317,7 @@ main() {
         else
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "failed" "error"
             log_status "WARN" "Execution failed, waiting ${RETRY_BACKOFF_SECONDS} seconds before retry..."
+            send_notification "Super-Ralph - Execution Failed" "Loop $loop_count failed — retrying in ${RETRY_BACKOFF_SECONDS}s"
             sleep "$RETRY_BACKOFF_SECONDS"
         fi
 
@@ -1262,6 +1355,10 @@ Options:
     --reset-circuit         Reset circuit breaker
     --circuit-status        Show circuit breaker status
     --reset-session         Reset session state
+    --dry-run               Simulate loop without making Claude API calls
+    -n, --notify            Enable cross-platform desktop notifications
+    --model MODEL           Override --model for Claude CLI (env: CLAUDE_MODEL)
+    --effort LEVEL          Override --effort for Claude CLI (env: CLAUDE_EFFORT)
 
 Superpowers Features:
     - Automatic task classification (feature/bug/plan/completion/review)
@@ -1350,6 +1447,30 @@ while [[ $# -gt 0 ]]; do
             reset_session "manual_reset_flag"
             echo -e "${GREEN}Session state reset successfully${NC}"
             exit 0
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        -n|--notify)
+            ENABLE_NOTIFICATIONS=true
+            shift
+            ;;
+        --model)
+            if [[ -z "$2" ]]; then
+                echo "Error: --model requires a value"
+                exit 1
+            fi
+            CLAUDE_MODEL="$2"
+            shift 2
+            ;;
+        --effort)
+            if [[ -z "$2" ]]; then
+                echo "Error: --effort requires a value"
+                exit 1
+            fi
+            CLAUDE_EFFORT="$2"
+            shift 2
             ;;
         *) echo "Unknown option: $1"; show_help; exit 1 ;;
     esac
