@@ -930,8 +930,107 @@ EOF
     else
         printf '{"status": "failed", "timestamp": "%s"}' "$(date '+%Y-%m-%d %H:%M:%S')" > "$PROGRESS_FILE"
 
-        if grep -qi "5.*hour.*limit\|limit.*reached.*try.*back\|usage.*limit.*reached" "$output_file" 2>/dev/null; then
+        # P4 Layer 1 (+ P9): timeout guard. Exit code 124 is a timeout, not an
+        # API limit — don't false-trigger the 5-hour recovery flow. Before
+        # treating the timeout as failure, check whether Claude made real
+        # progress (productive timeout, #198).
+        if [[ $exit_code -eq 124 ]]; then
+            log_status "WARN" "Claude Code execution timed out (not an API limit)"
+
+            local timeout_loop_start_sha=""
+            local timeout_current_sha=""
+            local timeout_files_changed=0
+
+            if [[ -f "$SUPER_RALPH_DIR/.loop_start_sha" ]]; then
+                timeout_loop_start_sha=$(cat "$SUPER_RALPH_DIR/.loop_start_sha" 2>/dev/null || echo "")
+            fi
+
+            if command -v git &>/dev/null && git rev-parse --git-dir &>/dev/null 2>&1; then
+                timeout_current_sha=$(git rev-parse HEAD 2>/dev/null || echo "")
+                timeout_files_changed=$(count_changed_files "$timeout_loop_start_sha" "$timeout_current_sha")
+            fi
+
+            if [[ $timeout_files_changed -gt 0 ]]; then
+                log_status "INFO" "Timeout but $timeout_files_changed file(s) changed — treating iteration as productive"
+                echo "{\"status\": \"timed_out_productive\", \"files_changed\": $timeout_files_changed, \"timestamp\": \"$(date '+%Y-%m-%d %H:%M:%S')\"}" > "$PROGRESS_FILE"
+
+                # Still save a session even though we timed out, so continuity
+                # isn't broken for follow-up loops.
+                if [[ "$CLAUDE_USE_CONTINUE" == "true" ]]; then
+                    save_claude_session "$output_file"
+                fi
+
+                # Run the response analyzer pipeline on whatever output exists.
+                if type analyze_response &>/dev/null 2>&1; then
+                    log_status "INFO" "Analyzing response from productive timeout..."
+                    analyze_response "$output_file" "$loop_count"
+                    local timeout_analysis_exit=$?
+
+                    if [[ $timeout_analysis_exit -eq 0 ]]; then
+                        if type update_exit_signals &>/dev/null 2>&1; then
+                            update_exit_signals
+                        fi
+                        if type log_analysis_summary &>/dev/null 2>&1; then
+                            log_analysis_summary
+                        fi
+                    else
+                        log_status "WARN" "Timeout response analysis failed (exit $timeout_analysis_exit); clearing stale analysis"
+                        rm -f "$RESPONSE_ANALYSIS_FILE"
+                    fi
+                fi
+
+                if type record_loop_result &>/dev/null 2>&1; then
+                    local timeout_output_length
+                    timeout_output_length=$(wc -c < "$output_file" 2>/dev/null || echo "0")
+                    record_loop_result "$loop_count" "$timeout_files_changed" "false" "$timeout_output_length"
+                    local timeout_circuit_result=$?
+                    if [[ $timeout_circuit_result -ne 0 ]]; then
+                        log_status "WARN" "Circuit breaker opened - halting execution"
+                        return 3
+                    fi
+                fi
+
+                return 0
+            else
+                log_status "WARN" "Timeout with no detectable progress"
+                return 1
+            fi
+        fi
+
+        # P4 Layer 2 (+ P5 whitespace tolerance): structural JSON check.
+        # The definitive signal from the CLI is a rate_limit_event with
+        # status:rejected; prefer it over text scanning.
+        if grep -q '"rate_limit_event"' "$output_file" 2>/dev/null; then
+            local last_rate_event
+            last_rate_event=$(grep '"rate_limit_event"' "$output_file" 2>/dev/null | tail -1)
+            if echo "$last_rate_event" | grep -qE '"status"[[:space:]]*:[[:space:]]*"rejected"'; then
+                log_status "ERROR" "Claude API 5-hour usage limit reached"
+                return 2
+            fi
+        fi
+
+        # P4 Layer 3 (+ P5 whitespace tolerance): filtered text fallback.
+        # Scan only the tail and skip tool-result / user-echo lines so
+        # project files that happen to contain "5-hour limit" don't trigger
+        # a false positive.
+        if tail -30 "$output_file" 2>/dev/null \
+            | grep -vE '"type"[[:space:]]*:[[:space:]]*"user"' \
+            | grep -v '"tool_result"' \
+            | grep -v '"tool_use_id"' \
+            | grep -qi "5.*hour.*limit\|limit.*reached.*try.*back\|usage.*limit.*reached"; then
             log_status "ERROR" "Claude API 5-hour usage limit reached"
+            return 2
+        fi
+
+        # P10 Layer 4: Extra Usage quota exhaustion (Ralph #100).
+        # "You're out of extra usage · resets 9pm" uses a different message
+        # than the 5-hour plan limit, but the user recovery flow is the same.
+        if tail -30 "$output_file" 2>/dev/null \
+            | grep -vE '"type"[[:space:]]*:[[:space:]]*"user"' \
+            | grep -v '"tool_result"' \
+            | grep -v '"tool_use_id"' \
+            | grep -qi "out of extra usage"; then
+            log_status "ERROR" "Claude Extra Usage quota exhausted"
             return 2
         fi
 
@@ -1093,8 +1192,9 @@ main() {
             break
         elif [[ $exec_result -eq 2 ]]; then
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "api_limit" "paused"
-            log_status "WARN" "Claude API 5-hour limit reached!"
-            echo -e "\n${YELLOW}The Claude API 5-hour usage limit has been reached.${NC}"
+            log_status "WARN" "Claude API usage limit reached!"
+            # P10: copy covers both the 5-hour plan limit and Extra Usage quota.
+            echo -e "\n${YELLOW}A Claude API usage limit has been reached (5-hour plan limit or Extra Usage quota).${NC}"
             echo -e "  ${GREEN}1)${NC} Wait for the limit to reset (usually within an hour)"
             echo -e "  ${GREEN}2)${NC} Exit the loop and try again later"
             echo -e "\n${BLUE}Choose an option (1 or 2):${NC} "
