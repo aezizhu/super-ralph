@@ -31,18 +31,24 @@ setup_tmux_session() {
     local base_win
     base_win=$(tmux show-options -gv base-index 2>/dev/null)
     base_win="${base_win:-0}"
+    local base_pane
+    base_pane=$(tmux show-window-options -gv pane-base-index 2>/dev/null)
+    base_pane="${base_pane:-0}"
+    local p0=$((base_pane + 0))
+    local p1=$((base_pane + 1))
+    local p2=$((base_pane + 2))
 
     log_status "INFO" "Setting up tmux session: $session_name"
     echo "=== Super-Ralph Live Output - Waiting for first loop... ===" > "$LIVE_LOG_FILE"
 
     tmux new-session -d -s "$session_name" -c "$project_dir"
     tmux split-window -h -t "$session_name" -c "$project_dir"
-    tmux split-window -v -t "$session_name:${base_win}.1" -c "$project_dir"
+    tmux split-window -v -t "$session_name:${base_win}.${p1}" -c "$project_dir"
 
     # Right-top: live Claude output
-    tmux send-keys -t "$session_name:${base_win}.1" "tail -f '$project_dir/$LIVE_LOG_FILE'" Enter
+    tmux send-keys -t "$session_name:${base_win}.${p1}" "tail -f '$project_dir/$LIVE_LOG_FILE'" Enter
     # Right-bottom: status monitor
-    tmux send-keys -t "$session_name:${base_win}.2" "watch -n 5 'jq . $project_dir/$STATUS_FILE 2>/dev/null || echo No status yet'" Enter
+    tmux send-keys -t "$session_name:${base_win}.${p2}" "watch -n 5 'jq . $project_dir/$STATUS_FILE 2>/dev/null || echo No status yet'" Enter
 
     # Left: super-ralph loop (forward relevant args, always use --live in tmux)
     local sr_cmd="'$SCRIPT_DIR/super_ralph_loop.sh' --live"
@@ -61,11 +67,11 @@ setup_tmux_session() {
     # in the other panes don't keep the window alive.
     sr_cmd="$sr_cmd; tmux kill-session -t $session_name 2>/dev/null"
 
-    tmux send-keys -t "$session_name:${base_win}.0" "$sr_cmd" Enter
-    tmux select-pane -t "$session_name:${base_win}.0"
-    tmux select-pane -t "$session_name:${base_win}.0" -T "Super-Ralph Loop"
-    tmux select-pane -t "$session_name:${base_win}.1" -T "Claude Output"
-    tmux select-pane -t "$session_name:${base_win}.2" -T "Status"
+    tmux send-keys -t "$session_name:${base_win}.${p0}" "$sr_cmd" Enter
+    tmux select-pane -t "$session_name:${base_win}.${p0}"
+    tmux select-pane -t "$session_name:${base_win}.${p0}" -T "Super-Ralph Loop"
+    tmux select-pane -t "$session_name:${base_win}.${p1}" -T "Claude Output"
+    tmux select-pane -t "$session_name:${base_win}.${p2}" -T "Status"
     tmux rename-window -t "$session_name:${base_win}" "Super-Ralph: Loop | Output | Status"
 
     log_status "SUCCESS" "Tmux session created with 3 panes:"

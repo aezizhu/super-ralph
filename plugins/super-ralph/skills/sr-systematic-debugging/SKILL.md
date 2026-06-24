@@ -38,6 +38,11 @@ Use for ANY technical issue:
 - Previous fix didn't work
 - You don't fully understand the issue
 
+**Don't skip when:**
+- Issue seems simple (simple bugs have root causes too)
+- You're in a hurry (rushing guarantees rework)
+- Manager wants it fixed NOW (systematic is faster than thrashing)
+
 ## The Four Phases
 
 You MUST complete each phase before proceeding to the next.
@@ -48,6 +53,7 @@ You MUST complete each phase before proceeding to the next.
 
 1. **Read Error Messages Carefully**
    - Don't skip past errors or warnings
+   - They often contain the exact solution
    - Read stack traces completely
    - Note line numbers, file paths, error codes
 
@@ -122,8 +128,22 @@ If you catch yourself thinking:
 - "Here are the main problems: [lists fixes without investigation]"
 - Proposing solutions before tracing data flow
 - **"One more fix attempt" (when already tried 2+)**
+- **Each fix reveals new problem in different place**
 
 **ALL of these mean: STOP. Return to Phase 1.**
+
+**If 3+ fixes failed:** Question the architecture (see Phase 4, Step 5)
+
+## Your Human Partner's Signals You're Doing It Wrong
+
+**Watch for these redirections:**
+- "Is that not happening?" - You assumed without verifying
+- "Will it show us...?" - You should have added evidence gathering
+- "Stop guessing" - You're proposing fixes without understanding
+- "Ultra-think this" - Question fundamentals, not just symptoms
+- "We're stuck?" (frustrated) - Your approach isn't working
+
+**When you see these:** STOP. Return to Phase 1.
 
 ## Common Rationalizations
 
@@ -146,11 +166,24 @@ If you catch yourself thinking:
 | **3. Hypothesis** | Form theory, test minimally | Confirmed or new hypothesis |
 | **4. Implementation** | Create test, fix, verify | Bug resolved, tests pass |
 
+## When Process Reveals "No Root Cause"
+
+If systematic investigation reveals issue is truly environmental, timing-dependent, or external:
+
+1. You've completed the process
+2. Document what you investigated
+3. Implement appropriate handling (retry, timeout, error message)
+4. Add monitoring/logging for future investigation
+
+**But:** 95% of "no root cause" cases are incomplete investigation.
+
 ## Supporting Techniques
 
-- **root-cause-tracing.md** - Trace bugs backward through call stack to find original trigger
-- **defense-in-depth.md** - Add validation at multiple layers after finding root cause
-- **condition-based-waiting.md** - Replace arbitrary timeouts with condition polling
+These techniques are part of systematic debugging and available in this directory:
+
+- **`root-cause-tracing.md`** - Trace bugs backward through call stack to find original trigger
+- **`defense-in-depth.md`** - Add validation at multiple layers after finding root cause
+- **`condition-based-waiting.md`** - Replace arbitrary timeouts with condition polling
 
 ## Related Skills
 

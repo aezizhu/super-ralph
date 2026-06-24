@@ -33,7 +33,7 @@ git diff {BASE_SHA}..{HEAD_SHA}
 - Clean separation of concerns?
 - Proper error handling?
 - Type safety (if applicable)?
-- DRY principle followed?
+- DRY without premature abstraction?
 - Edge cases handled?
 
 **Architecture:**
@@ -54,11 +54,11 @@ git diff {BASE_SHA}..{HEAD_SHA}
 - No scope creep?
 - Breaking changes documented?
 
-**Production Readiness:**
-- Migration strategy (if schema changes)?
-- Backward compatibility considered?
-- Documentation complete?
-- No obvious bugs?
+**Structure:**
+- Does each file have one clear responsibility with a well-defined interface?
+- Are units decomposed so they can be understood and tested independently?
+- Did this change create new files that are already large, or
+  significantly grow existing files?
 
 ## Output Format
 
@@ -81,9 +81,6 @@ git diff {BASE_SHA}..{HEAD_SHA}
 - What's wrong
 - Why it matters
 - How to fix (if not obvious)
-
-### Recommendations
-[Improvements for code quality, architecture, or process]
 
 ### Assessment
 

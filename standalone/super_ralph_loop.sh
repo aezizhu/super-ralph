@@ -173,6 +173,23 @@ VALID_TOOL_PATTERNS=(
 
 mkdir -p "$LOG_DIR" "$DOCS_DIR" "docs/plans"
 
+# _safe_count - Count regex matches in a file safely for bash arithmetic.
+# `$(grep -cE … || echo "0")` can return "0\n0" (grep no-match + fallback)
+# or "5\r" (CRLF files). Both break $((var + var)) arithmetic.
+# Usage: count=$(_safe_count "pattern" "$file")
+_safe_count() {
+    local pattern="$1"
+    local file="$2"
+    [[ ! -f "$file" ]] && { printf '0'; return 0; }
+    local raw
+    raw=$(grep -cE "$pattern" "$file" 2>/dev/null | tr -d '\r\n[:space:]' | head -c 10)
+    if [[ "$raw" =~ ^[0-9]+$ ]]; then
+        printf '%d' "$raw"
+    else
+        printf '0'
+    fi
+}
+
 # Source shared logging library
 source "$SCRIPT_DIR/lib/logging.sh"         || { echo "FATAL: lib/logging.sh failed to source" >&2; exit 1; }
 
@@ -906,8 +923,7 @@ build_loop_context() {
 
     if [[ -f "$SUPER_RALPH_DIR/fix_plan.md" ]]; then
         local incomplete_tasks
-        incomplete_tasks=$(grep -cE "^[[:space:]]*- \[ \]" "$SUPER_RALPH_DIR/fix_plan.md" 2>/dev/null || true)
-        [[ -z "$incomplete_tasks" ]] && incomplete_tasks=0
+        incomplete_tasks=$(_safe_count "^[[:space:]]*- \[ \]" "$SUPER_RALPH_DIR/fix_plan.md")
         context+="Remaining tasks: ${incomplete_tasks}. "
     fi
 

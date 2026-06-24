@@ -58,8 +58,10 @@ init_claude_session() {
             return 0
         fi
 
+        # Fix: Read only first line and strip whitespace/CR — corrupted files
+        # may contain multi-line content from jq returning multiple matches.
         local session_id
-        session_id=$(cat "$CLAUDE_SESSION_FILE" 2>/dev/null)
+        session_id=$(head -n 1 "$CLAUDE_SESSION_FILE" 2>/dev/null | tr -d '\r\n[:space:]')
         if [[ -n "$session_id" ]]; then
             log_status "INFO" "Resuming Claude session: ${session_id:0:20}... (${age_hours}h old)"
             echo "$session_id"
@@ -84,8 +86,13 @@ save_claude_session() {
             return 0
         fi
 
+        # Fix: jq may return multi-line output when file is JSONL or session_id
+        # appears at multiple paths. Take first non-empty line and strip whitespace.
         local session_id
-        session_id=$(jq -r '.metadata.session_id // .session_id // empty' "$output_file" 2>/dev/null)
+        session_id=$(jq -r '.metadata.session_id // .session_id // empty' "$output_file" 2>/dev/null \
+                     | grep -v '^$' \
+                     | head -n 1 \
+                     | tr -d '\r\n[:space:]')
         if [[ -n "$session_id" && "$session_id" != "null" ]]; then
             echo "$session_id" > "$CLAUDE_SESSION_FILE"
             log_status "INFO" "Saved Claude session: ${session_id:0:20}..."

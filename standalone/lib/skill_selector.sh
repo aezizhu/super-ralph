@@ -151,12 +151,12 @@ all_tasks_complete() {
     fi
 
     local uncompleted
-    uncompleted=$(grep -cE "^[[:space:]]*- \[ \]" "$fix_plan" 2>/dev/null || true)
-    [[ -z "$uncompleted" ]] && uncompleted=0
+    uncompleted=$(grep -cE "^[[:space:]]*- \[ \]" "$fix_plan" 2>/dev/null | tr -d '\r\n[:space:]' | head -c 10)
+    [[ ! "$uncompleted" =~ ^[0-9]+$ ]] && uncompleted=0
 
     local completed
-    completed=$(grep -cE "^[[:space:]]*- \[[xX]\]" "$fix_plan" 2>/dev/null || true)
-    [[ -z "$completed" ]] && completed=0
+    completed=$(grep -cE "^[[:space:]]*- \[[xX]\]" "$fix_plan" 2>/dev/null | tr -d '\r\n[:space:]' | head -c 10)
+    [[ ! "$completed" =~ ^[0-9]+$ ]] && completed=0
 
     local total=$((uncompleted + completed))
 
@@ -177,8 +177,8 @@ count_remaining_tasks() {
     fi
 
     local uncompleted
-    uncompleted=$(grep -cE "^[[:space:]]*- \[ \]" "$fix_plan" 2>/dev/null || true)
-    [[ -z "$uncompleted" ]] && uncompleted=0
+    uncompleted=$(grep -cE "^[[:space:]]*- \[ \]" "$fix_plan" 2>/dev/null | tr -d '\r\n[:space:]' | head -c 10)
+    [[ ! "$uncompleted" =~ ^[0-9]+$ ]] && uncompleted=0
 
     echo "$uncompleted"
 }

@@ -118,6 +118,22 @@ When feedback IS correct:
 [Just fix it and show in the code]
 ```
 
+## Gracefully Correcting Your Pushback
+
+If you pushed back but the reviewer is right:
+```
+"You're right — I was wrong about [specific thing]. Fixing now."
+```
+
+Don't double down. Don't save face. Acknowledge, fix, move on.
+
+## GitHub Thread Replies
+
+When responding on GitHub PR reviews:
+- Reply in the existing thread (don't start new top-level comments)
+- Mark resolved conversations as resolved after fixing
+- If a conversation needs discussion, reply in-thread before making changes
+
 ## Common Mistakes
 
 | Mistake | Fix |
