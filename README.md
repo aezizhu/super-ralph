@@ -149,8 +149,10 @@ plugins/super-ralph/skills/
   sr-verification-before-completion/SKILL.md
   sr-subagent-driven-development/SKILL.md
   sr-subagent-driven-development/implementer-prompt.md
-  sr-subagent-driven-development/spec-reviewer-prompt.md
-  sr-subagent-driven-development/code-quality-reviewer-prompt.md
+  sr-subagent-driven-development/task-reviewer-prompt.md
+  sr-subagent-driven-development/scripts/sdd-workspace
+  sr-subagent-driven-development/scripts/task-brief
+  sr-subagent-driven-development/scripts/review-package
   sr-executing-plans/SKILL.md
   sr-requesting-code-review/SKILL.md
   sr-requesting-code-review/code-reviewer.md
