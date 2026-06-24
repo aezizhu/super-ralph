@@ -4,6 +4,66 @@ All notable changes to Super-Ralph are documented in this file.
 
 ## [Unreleased]
 
+### sync-upstream-2026-06
+
+Upstream sync against `frankbria/ralph-claude-code` (37 commits) and
+`obra/superpowers` (172 commits, 65 touching skills/) through
+2026-06-24.
+
+#### Superpowers skill ports
+
+- **sr-subagent-driven-development** — Major rewrite: unified
+  task-reviewer replaces two-stage spec-reviewer + code-quality-reviewer.
+  New task-reviewer-prompt.md, updated implementer-prompt.md with TDD
+  Evidence and file-based brief. New scripts: sdd-workspace, task-brief,
+  review-package. Old spec-reviewer-prompt.md and
+  code-quality-reviewer-prompt.md deleted.
+- **sr-finishing-a-development-branch** — Added Step 2 (GIT_DIR vs
+  GIT_COMMON environment detection), detached HEAD conditional menu
+  (3 vs 4 options), Step 6 provenance-based cleanup.
+- **sr-using-git-worktrees** — Added Step 0 (Detect Existing Isolation)
+  with submodule guard, restructured Steps 1a/1b with native tool priority.
+- **sr-writing-plans** — Added Scope Check, Task Right-Sizing, File
+  Structure, Global Constraints, Interfaces blocks, Execution Handoff.
+- **sr-brainstorming** — Added HARD-GATE, Anti-Pattern section, 8-item
+  checklist, Design for isolation, Working in existing codebases, User
+  Review Gate.
+- **sr-requesting-code-review** — Updated checklist with Structure
+  section, updated Assessment format.
+- **sr-receiving-code-review** — Added Gracefully Correcting Pushback,
+  GitHub Thread Replies sections.
+- **sr-systematic-debugging** — Added Don't skip when, expanded Phase 1
+  error reading, Your Human Partner's Signals, When Process Reveals No
+  Root Cause.
+- **sr-test-driven-development** — Updated description for SDO, added
+  manual testing rebuttal, TDD pragmatism/spirit rebuttals, bug fix
+  example.
+- **sr-verification-before-completion** — Updated description for SDO,
+  added regression test pattern, Why This Matters section, expanded
+  rationalization table, Rule applies to section.
+- **sr-writing-skills** — Added TDD Mapping table, Skill Types, SDO
+  section (Rich Description, Keyword Coverage, Token Efficiency), Match
+  Form to Failure, expanded Iron Law, Testing All Skill Types,
+  Bulletproofing Against Rationalization.
+- **sr-dispatching-parallel-agents** — Added decision flowchart, dispatch
+  example with parallel semantics, Real-World Impact section.
+
+#### Ralph upstream bug fixes
+
+- **Session ID corruption** (upstream #254) — `init_claude_session` and
+  `save_claude_session` now strip multi-line jq output and CR characters
+  to prevent `--resume` failures with corrupted session files.
+- **Tmux pane-base-index** (upstream #259) — `setup_tmux_session` now
+  reads `pane-base-index` and computes dynamic pane indices instead of
+  hardcoding `.0/.1/.2`.
+- **Arithmetic crash prevention** (upstream #255, #251, #260) — Added
+  `_safe_count` helper to normalize grep count output for bash arithmetic;
+  replaced unsafe `grep -cE … || true` patterns in loop and skill selector.
+
+---
+
+## Previous
+
 Upstream sync against `frankbria/ralph-claude-code` and
 `obra/superpowers` through 2026-04-23. Details of each port live in
 the corresponding `sync-upstream-2026-04` commit.

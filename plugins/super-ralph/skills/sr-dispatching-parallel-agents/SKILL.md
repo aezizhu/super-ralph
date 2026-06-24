@@ -15,6 +15,24 @@ When you have multiple unrelated failures (different test files, different subsy
 
 ## When to Use
 
+```dot
+digraph when_to_use {
+    "Multiple failures?" [shape=diamond];
+    "Are they independent?" [shape=diamond];
+    "Single agent investigates all" [shape=box];
+    "One agent per problem domain" [shape=box];
+    "Can they work in parallel?" [shape=diamond];
+    "Sequential agents" [shape=box];
+    "Parallel dispatch" [shape=box];
+
+    "Multiple failures?" -> "Are they independent?" [label="yes"];
+    "Are they independent?" -> "Single agent investigates all" [label="no - related"];
+    "Are they independent?" -> "Can they work in parallel?" [label="yes"];
+    "Can they work in parallel?" -> "Parallel dispatch" [label="yes"];
+    "Can they work in parallel?" -> "Sequential agents" [label="no - shared state"];
+}
+```
+
 **Use when:**
 - 3+ test files failing with different root causes
 - Multiple subsystems broken independently
@@ -42,7 +60,16 @@ Each agent gets:
 
 ### 3. Dispatch in Parallel
 
-All agents run concurrently on their independent domains.
+Issue all subagent dispatches in the same response — they run in parallel:
+
+```text
+Subagent (general-purpose): "Fix agent-tool-abort.test.ts failures"
+Subagent (general-purpose): "Fix batch-completion-behavior.test.ts failures"
+Subagent (general-purpose): "Fix tool-approval-race-conditions.test.ts failures"
+# All three run concurrently.
+```
+
+Multiple dispatch calls in one response = parallel execution. One per response = sequential.
 
 ### 4. Review and Integrate
 
@@ -80,10 +107,13 @@ Return: Summary of what you found and what you fixed.
 
 ## Common Mistakes
 
-- **Too broad:** "Fix all the tests" - agent gets lost
-- **No context:** "Fix the race condition" - agent doesn't know where
-- **No constraints:** Agent might refactor everything
-- **Vague output:** "Fix it" - you don't know what changed
+**Too broad:** "Fix all the tests" - agent gets lost. Be specific: "Fix agent-tool-abort.test.ts"
+
+**No context:** "Fix the race condition" - agent doesn't know where. Paste the error messages and test names.
+
+**No constraints:** Agent might refactor everything. Add: "Do NOT change production code" or "Fix tests only"
+
+**Vague output:** "Fix it" - you don't know what changed. Ask for: "Return summary of root cause and changes"
 
 ## When NOT to Use
 
@@ -121,3 +151,12 @@ Stop and reassess if you catch yourself:
 2. **Focus** - Each agent has narrow scope, less context to track
 3. **Independence** - Agents don't interfere with each other
 4. **Speed** - 3 problems solved in time of 1
+
+## Real-World Impact
+
+From debugging sessions:
+- 6 failures across 3 files
+- 3 agents dispatched in parallel
+- All investigations completed concurrently
+- All fixes integrated successfully
+- Zero conflicts between agent changes

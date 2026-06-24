@@ -1,6 +1,6 @@
 ---
 name: sr-verification-before-completion
-description: Use when running Ralph loops or when the user explicitly requests verification discipline - ensures tests are run and output is read before claiming completion
+description: Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always
 ---
 
 # Verification Before Completion
@@ -57,6 +57,7 @@ Skip any step = lying, not verifying
 - Trusting agent success reports
 - Relying on partial verification
 - Thinking "just this once"
+- Tired and wanting work over
 - **ANY wording implying success without having run verification**
 
 ## Rationalization Prevention
@@ -69,6 +70,8 @@ Skip any step = lying, not verifying
 | "Linter passed" | Linter != compiler |
 | "Agent said success" | Verify independently |
 | "Partial check is enough" | Partial proves nothing |
+| "I'm tired" | Exhaustion ≠ excuse |
+| "Different words so rule doesn't apply" | Spirit over letter |
 
 ## Key Patterns
 
@@ -76,6 +79,12 @@ Skip any step = lying, not verifying
 ```
 [Run test command] [See: 34/34 pass] "All tests pass"
 NOT: "Should pass now" / "Looks correct"
+```
+
+**Regression tests (TDD Red-Green):**
+```
+Write → Run (pass) → Revert fix → Run (MUST FAIL) → Restore → Run (pass)
+NOT: "I've written a regression test" (without red-green verification)
 ```
 
 **Build:**
@@ -96,6 +105,14 @@ Agent reports success -> Check VCS diff -> Verify changes -> Report actual state
 NOT: Trust agent report
 ```
 
+## Why This Matters
+
+From real failure analysis:
+- Your human partner said "I don't believe you" - trust broken
+- Undefined functions shipped - would crash
+- Missing requirements shipped - incomplete features
+- Time wasted on false completion → redirect → rework
+
 ## When To Apply
 
 **ALWAYS before:**
@@ -105,6 +122,12 @@ NOT: Trust agent report
 - Committing, PR creation, task completion
 - Moving to next task
 - Delegating to agents
+
+**Rule applies to:**
+- Exact phrases
+- Paraphrases and synonyms
+- Implications of success
+- ANY communication suggesting completion/correctness
 
 ## The Bottom Line
 
