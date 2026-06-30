@@ -7,8 +7,10 @@ REVIEW_PACKAGE_SCRIPT="$SCRIPT_DIR/review-package"
 
 setup() {
     export TEST_DIR="$(mktemp -d "$BATS_TMPDIR/sdd_scripts.XXXXXX")"
-    export REPO_DIR="$TEST_DIR/repo"
-    mkdir -p "$REPO_DIR"
+    mkdir -p "$TEST_DIR/repo"
+    # Resolve to the physical path so comparisons match `git rev-parse
+    # --show-toplevel`, which the scripts use (macOS $TMPDIR is symlinked).
+    export REPO_DIR="$(cd "$TEST_DIR/repo" && pwd -P)"
     git -C "$REPO_DIR" init -q
 }
 
