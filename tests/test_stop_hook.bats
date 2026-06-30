@@ -68,8 +68,7 @@ create_hook_input() {
     hook_input=$(create_hook_input)
     run bash -c "echo '$hook_input' | bash '$HOOK_SCRIPT'"
     [ "$status" -eq 0 ]
-    # No JSON output means exit was allowed
-    ! echo "$output" | jq -e '.decision' 2>/dev/null
+    [ -z "$output" ]
 }
 
 @test "stop-hook: blocks exit when state file present" {
@@ -115,11 +114,7 @@ create_hook_input() {
     [ "$status" -eq 0 ]
 
     # Should NOT output block decision (max reached)
-    if echo "$output" | jq -e '.decision' 2>/dev/null; then
-        local decision
-        decision=$(echo "$output" | jq -r '.decision' 2>/dev/null)
-        [ "$decision" != "block" ]
-    fi
+    ! printf '%s' "$output" | grep -q '"decision":"block"'
 
     # State file should be removed
     [ ! -f "$TEST_DIR/.claude/super-ralph-loop.local.md" ]
@@ -511,11 +506,7 @@ EOF
     [ "$status" -eq 0 ]
 
     # Should NOT output block decision (not our loop)
-    if echo "$output" | jq -e '.decision' 2>/dev/null; then
-        local decision
-        decision=$(echo "$output" | jq -r '.decision' 2>/dev/null)
-        [ "$decision" != "block" ]
-    fi
+    ! printf '%s' "$output" | grep -q '"decision":"block"'
 
     # CRITICAL: state file must still exist (belongs to session A)
     [ -f "$TEST_DIR/.claude/super-ralph-loop.local.md" ]
@@ -579,11 +570,7 @@ EOF
     [ "$status" -eq 0 ]
 
     # Should NOT block (stale file)
-    if echo "$output" | jq -e '.decision' 2>/dev/null; then
-        local decision
-        decision=$(echo "$output" | jq -r '.decision' 2>/dev/null)
-        [ "$decision" != "block" ]
-    fi
+    ! printf '%s' "$output" | grep -q '"decision":"block"'
 
     # Stale file should be cleaned up
     [ ! -f "$TEST_DIR/.claude/super-ralph-loop.local.md" ]
