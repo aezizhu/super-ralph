@@ -114,7 +114,7 @@ create_hook_input() {
     [ "$status" -eq 0 ]
 
     # Should NOT output block decision (max reached)
-    ! printf '%s' "$output" | grep -q '"decision":"block"'
+    ! printf '%s' "$output" | grep -qE '"decision"[[:space:]]*:[[:space:]]*"block"'
 
     # State file should be removed
     [ ! -f "$TEST_DIR/.claude/super-ralph-loop.local.md" ]
@@ -506,7 +506,7 @@ EOF
     [ "$status" -eq 0 ]
 
     # Should NOT output block decision (not our loop)
-    ! printf '%s' "$output" | grep -q '"decision":"block"'
+    ! printf '%s' "$output" | grep -qE '"decision"[[:space:]]*:[[:space:]]*"block"'
 
     # CRITICAL: state file must still exist (belongs to session A)
     [ -f "$TEST_DIR/.claude/super-ralph-loop.local.md" ]
@@ -570,7 +570,7 @@ EOF
     [ "$status" -eq 0 ]
 
     # Should NOT block (stale file)
-    ! printf '%s' "$output" | grep -q '"decision":"block"'
+    ! printf '%s' "$output" | grep -qE '"decision"[[:space:]]*:[[:space:]]*"block"'
 
     # Stale file should be cleaned up
     [ ! -f "$TEST_DIR/.claude/super-ralph-loop.local.md" ]
