@@ -141,7 +141,7 @@ plugins/super-ralph/skills/
   sr-brainstorming/SKILL.md
   sr-writing-plans/SKILL.md
   sr-test-driven-development/SKILL.md
-  sr-test-driven-development/testing-anti-patterns.md
+  sr-test-driven-development/writing-good-tests.md
   sr-systematic-debugging/SKILL.md
   sr-systematic-debugging/root-cause-tracing.md
   sr-systematic-debugging/defense-in-depth.md
@@ -150,6 +150,7 @@ plugins/super-ralph/skills/
   sr-subagent-driven-development/SKILL.md
   sr-subagent-driven-development/implementer-prompt.md
   sr-subagent-driven-development/task-reviewer-prompt.md
+  sr-subagent-driven-development/re-review-prompt.md
   sr-subagent-driven-development/scripts/sdd-workspace
   sr-subagent-driven-development/scripts/task-brief
   sr-subagent-driven-development/scripts/review-package
