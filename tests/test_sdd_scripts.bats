@@ -28,17 +28,28 @@ write_and_commit() {
     git -C "$REPO_DIR" -c user.email=t@t -c user.name=t commit -m "$message" >/dev/null
 }
 
-@test "sdd-workspace: prints repo-local workspace path and initializes it" {
+@test "sdd-workspace: prints plan-scoped workspace path and initializes it" {
     mkdir -p "$REPO_DIR/nested/dir"
+    printf '# Plan\n' > "$REPO_DIR/feature-plan.md"
     cd "$REPO_DIR/nested/dir"
 
-    run bash "$SDD_WORKSPACE_SCRIPT"
+    run bash "$SDD_WORKSPACE_SCRIPT" "$REPO_DIR/feature-plan.md"
     [ "$status" -eq 0 ]
 
-    local workspace="$REPO_DIR/.superpowers/sdd"
+    local workspace="$REPO_DIR/.superpowers/sdd/feature-plan"
     [ "$output" = "$workspace" ]
     [ -d "$workspace" ]
-    [ "$(cat "$workspace/.gitignore")" = "*" ]
+    [ "$(cat "$REPO_DIR/.superpowers/sdd/.gitignore")" = "*" ]
+}
+
+@test "sdd-workspace: exits 2 without a plan file" {
+    cd "$REPO_DIR"
+
+    run bash "$SDD_WORKSPACE_SCRIPT"
+    [ "$status" -eq 2 ]
+
+    run bash "$SDD_WORKSPACE_SCRIPT" "$REPO_DIR/no-such-plan.md"
+    [ "$status" -eq 2 ]
 }
 
 @test "task-brief: extracts the requested task to an explicit outfile" {
@@ -131,6 +142,9 @@ EOF
     git -C "$REPO_DIR" add note.txt
     git -C "$REPO_DIR" -c user.email=t@t -c user.name=t commit -m "update note" >/dev/null
 
+    local plan="$REPO_DIR/feature-plan.md"
+    printf '# Plan\n' > "$plan"
+
     cd "$REPO_DIR"
 
     local base head base_short head_short out
@@ -138,9 +152,9 @@ EOF
     head=$(git -C "$REPO_DIR" rev-parse HEAD)
     base_short=$(git -C "$REPO_DIR" rev-parse --short "$base")
     head_short=$(git -C "$REPO_DIR" rev-parse --short "$head")
-    out="$REPO_DIR/.superpowers/sdd/review-${base_short}..${head_short}.diff"
+    out="$REPO_DIR/.superpowers/sdd/feature-plan/review-${base_short}..${head_short}.diff"
 
-    run bash "$REVIEW_PACKAGE_SCRIPT" "$base" "$head"
+    run bash "$REVIEW_PACKAGE_SCRIPT" "$plan" "$base" "$head"
     [ "$status" -eq 0 ]
 
     printf '%s\n' "$output" | grep -F "wrote $out: 1 commit(s),"

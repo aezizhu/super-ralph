@@ -4,6 +4,48 @@ All notable changes to Super-Ralph are documented in this file.
 
 ## [Unreleased]
 
+### sync-upstream-2026-08
+
+Upstream sync against `obra/superpowers` (through v6.3.0, 2026-08-12)
+and `frankbria/ralph-claude-code` through 2026-08-24.
+
+#### Superpowers skill ports
+
+- **sr-brainstorming** — Three Paths router (spike / bounded /
+  architectural) with per-path checklists, Red Flags table, path-bound
+  terminal states; approval gate now applies to every path.
+- **sr-subagent-driven-development** — Plan-scoped SDD workspace
+  (`.superpowers/sdd/<plan-basename>/`), new re-review-prompt.md for
+  scoped re-reviews after fix rounds, updated implementer and
+  task-reviewer prompts, major SKILL.md rewrite (controller discipline,
+  re-review flow, residual adjudication). Scripts sdd-workspace,
+  task-brief, review-package now take the plan file as first argument.
+- **sr-test-driven-development** — testing-anti-patterns.md replaced by
+  writing-good-tests.md (rules for honest tests); expanded
+  rationalization rebuttals.
+- **sr-finishing-a-development-branch** — Discard removed from the menu
+  (explicit-request only), 3/2-option menus, worktree-removal-refused
+  handling, Common Rationalizations table replaces Common
+  Mistakes/Red Flags.
+- **sr-using-git-worktrees** — Common Rationalizations table replaces
+  Common Mistakes/Red Flags.
+- **sr-requesting-code-review** — Tightened overview; Common
+  Rationalizations table; code-reviewer.md gains "You Do Not Dispatch
+  Subagents" section.
+- **sr-executing-plans** — Workspace isolation is now Step 1 of plan
+  review (three-task batching intentionally retained).
+- **sr-writing-plans** — Plan header now carries a Spec pointer;
+  removed redundant Remember section.
+- **sr-systematic-debugging / sr-verification-before-completion /
+  sr-receiving-code-review / sr-dispatching-parallel-agents** — Trimmed
+  redundant closing sections; Phase 4 verification now points at
+  sr-verification-before-completion.
+
+Ralph upstream fixes (zero-length output guard in response analyzer,
+tmux base-index detection after server start) reviewed; not ported —
+the corresponding code paths do not exist in Super-Ralph's standalone
+implementation.
+
 ### sync-upstream-2026-06
 
 Upstream sync against `frankbria/ralph-claude-code` (37 commits) and

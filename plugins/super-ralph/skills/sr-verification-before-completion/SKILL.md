@@ -7,8 +7,6 @@ description: Use when about to claim work is complete, fixed, or passing, before
 
 ## Overview
 
-Claiming work is complete without verification is dishonesty, not efficiency.
-
 **Core principle:** Evidence before claims, always.
 
 **Violating the letter of this rule is violating the spirit of this rule.**
@@ -105,14 +103,6 @@ Agent reports success -> Check VCS diff -> Verify changes -> Report actual state
 NOT: Trust agent report
 ```
 
-## Why This Matters
-
-From real failure analysis:
-- Your human partner said "I don't believe you" - trust broken
-- Undefined functions shipped - would crash
-- Missing requirements shipped - incomplete features
-- Time wasted on false completion → redirect → rework
-
 ## When To Apply
 
 **ALWAYS before:**
@@ -128,14 +118,6 @@ From real failure analysis:
 - Paraphrases and synonyms
 - Implications of success
 - ANY communication suggesting completion/correctness
-
-## The Bottom Line
-
-**No shortcuts for verification.**
-
-Run the command. Read the output. THEN claim the result.
-
-This is non-negotiable.
 
 ## Related Skills
 
